@@ -74,3 +74,22 @@ input[type=password]{min-height:44px;font:16px Barlow,system-ui,sans-serif;paddi
 .links{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px}
 .lnk{background:none;border:0;padding:8px 0;min-height:44px;color:var(--mx);font:600 15px Barlow,system-ui,sans-serif;cursor:pointer;text-decoration:underline}
 #newPassForm{display:grid;gap:12px;margin-top:8px}#newPassForm[hidden]{display:none}
+/* v3: abas, formulários, análise de foto */
+.tabs{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:6}
+.tabs .wrap{display:flex;gap:4px;overflow-x:auto;padding:0 max(4vw,16px)}
+.tabs button{flex:none;min-height:48px;padding:0 14px;border:0;border-bottom:3px solid transparent;background:none;color:var(--mut);font:600 15px Barlow,system-ui,sans-serif;cursor:pointer}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--mx)}
+.tab .filters{top:49px}
+.formgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;align-items:end;margin:10px 0 14px}
+input[type=date],input[type=number]{min-height:44px;font:16px Barlow,system-ui,sans-serif;padding:0 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+input[type=file]{font:14px Barlow,system-ui,sans-serif;min-height:44px}
+.pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:6px}
+.pair figure{margin:0}.frame{background:#3a2c20;border-radius:10px;overflow:hidden;display:grid;place-items:center;aspect-ratio:4/3}
+.frame canvas{max-width:100%;max-height:100%;display:block}
+figcaption{font-size:14px;color:var(--mut);margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ramp{display:inline-block;width:120px;height:10px;border-radius:5px;background:linear-gradient(90deg,#a50026,#f46d43,#fee08b,#a6d96a,#1a9850,#006837)}
+.res{display:flex;flex-wrap:wrap;gap:16px;align-items:end;margin-top:14px}.res>div{display:grid}
+.res .big{font:700 40px/1 "Barlow Semi Condensed",Barlow,sans-serif;color:var(--mx)}.grow{flex:1 1 220px}
+.ph .img img{object-fit:cover}
+.ro .editOnly,.ro #sendCard,.ro #upCard{display:none!important}
+td .mini+.mini{margin-left:4px}

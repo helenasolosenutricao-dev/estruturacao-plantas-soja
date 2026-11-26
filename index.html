@@ -6,7 +6,7 @@
 <title>Estruturação de Plantas · Soja</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
 <header class="band"><div class="wrap">
@@ -15,8 +15,6 @@
   <div class="sub" id="sub"></div>
   <div class="note" id="srcNote"></div>
   <div class="btns" id="actions" hidden>
-    <label class="btn gold" id="bxWrap">Enviar planilha (.xlsx)<input type="file" id="fx" accept=".xlsx,.xls,.csv"></label>
-    <label class="btn" id="bpWrap">Enviar fotos<input type="file" id="fp" accept="image/*" multiple></label>
     <button class="btn" id="reload" type="button">Atualizar dados</button>
     <button class="btn" id="logout" type="button">Sair</button>
   </div>
@@ -28,87 +26,176 @@
     <p class="h" id="gateMsg">Entre com seu e-mail e senha da equipe.</p>
     <form id="loginForm">
       <label class="f">E-mail<input type="email" id="email" required autocomplete="email" placeholder="nome@empresa.com.br"></label>
-      <label class="f">Senha<input type="password" id="pass" required minlength="6" autocomplete="current-password" placeholder="mínimo 6 caracteres"></label>
+      <label class="f">Senha<input type="password" id="pass" required minlength="6" autocomplete="current-password"></label>
       <button class="btn gold" type="submit" id="sendLink">Entrar</button>
       <p class="h" style="margin:0">Esqueceu a senha ou ainda não tem acesso? Fale com a administradora do projeto.</p>
-    </form>
-    <form id="newPassForm" hidden>
-      <label class="f">Nova senha<input type="password" id="np1" required minlength="6" autocomplete="new-password"></label>
-      <label class="f">Confirmar nova senha<input type="password" id="np2" required minlength="6" autocomplete="new-password"></label>
-      <button class="btn gold" type="submit">Salvar nova senha</button>
     </form>
     <button class="btn ghost" id="demoBtn" type="button">Ver com dados de exemplo</button>
   </div>
 </div></section>
 
 <div id="app" hidden>
-<div class="filters"><div class="wrap">
-  <label class="f">Produtor<select id="sP"></select></label>
-  <label class="f">Fazenda<select id="sF"></select></label>
-  <label class="f">Talhão<select id="sT"></select></label>
-  <label class="f">Estádio para comparação<select id="sE"></select></label>
-  <label class="f">Variável<select id="sV"></select></label>
-</div></div>
+<nav class="tabs"><div class="wrap" role="tablist">
+  <button type="button" data-tab="painel" class="on">Painel</button>
+  <button type="button" data-tab="fotos">Cobertura (fotos)</button>
+  <button type="button" data-tab="planilhas">Planilhas</button>
+  <button type="button" data-tab="cadastro">Produtores e fazendas</button>
+  <button type="button" data-tab="equipe" id="tabEquipe" hidden>Equipe</button>
+</div></nav>
 
-<main class="band"><div class="wrap">
-  <div class="card empty" id="empty" hidden><h2>Ainda não há avaliações no banco</h2>
-    <p>Baixe a <a href="Modelo_Avaliacoes_Estruturacao_Soja.xlsx">planilha modelo</a>, preencha a aba <b>Avaliacoes</b> e use “Enviar planilha”.</p></div>
-  <div id="dash">
-  <div class="kpis" id="kpis"></div>
+<!-- ===================== PAINEL ===================== -->
+<section id="tab-painel" class="tab">
+  <div class="filters"><div class="wrap">
+    <label class="f">Produtor<select id="sP"></select></label>
+    <label class="f">Fazenda<select id="sF"></select></label>
+    <label class="f">Estádio da avaliação<select id="sE"></select></label>
+  </div></div>
+  <main class="band"><div class="wrap">
+    <div class="card empty" id="empty" hidden><h2>Ainda não há dados para este filtro</h2>
+      <p>Cadastre o produtor e as fazendas, baixe a planilha base em <b>Planilhas</b> e envie as fotos em <b>Cobertura (fotos)</b>.</p></div>
+    <div id="dash">
+      <div class="kpis" id="kpis"></div>
 
-  <div class="grid2 sect">
-    <div class="card"><h2 id="evoT">Evolução</h2><p class="h">Média por tratamento ao longo dos dias após emergência (DAE)</p>
-      <div class="legend" id="leg"></div><div class="fig"><canvas id="cEvo"></canvas></div></div>
-    <div class="card"><h2 id="barT">Comparação</h2><p class="h">Média ± desvio padrão no estádio selecionado</p>
-      <div class="fig"><canvas id="cBar"></canvas></div></div>
+      <div class="grid2 sect">
+        <div class="card"><h2 id="plT">Altura por planta</h2><p class="h">Barras = média do tratamento ± desvio padrão · pontos = cada planta avaliada</p>
+          <div class="legend" id="leg1"></div><div class="fig"><canvas id="cPl"></canvas></div></div>
+        <div class="card"><h2>Cobertura do solo</h2><p class="h" id="gcH">Falso NDVI das fotos em grupo, por estádio</p>
+          <div class="fig"><canvas id="cGC"></canvas></div></div>
+      </div>
+
+      <div class="grid2 sect">
+        <div class="card"><h2>Crescimento médio das plantas</h2><p class="h">Altura média por tratamento ao longo dos dias após emergência (DAE)</p>
+          <div class="fig"><canvas id="cGrow"></canvas></div>
+          <div class="scroll" style="margin-top:12px"><table id="tabRate"></table></div></div>
+        <div class="card"><h2>População de plantas</h2><p class="h" id="popH">Estande médio por estádio</p>
+          <div class="fig"><canvas id="cPop"></canvas></div></div>
+      </div>
+
+      <div class="grid2 sect" style="align-items:start">
+        <div class="card"><h2 id="tabT">Resumo por tratamento</h2><p class="h" id="tabH"></p><div class="scroll"><table id="tab"></table></div></div>
+        <div class="card"><h2>Insights</h2><p class="h">Gerados a partir dos filtros</p><ul class="ins" id="ins"></ul></div>
+      </div>
+
+      <div class="card sect"><h2>Por fazenda</h2><p class="h" id="tab2H"></p><div class="scroll"><table id="tab2"></table></div></div>
+      <div class="card sect"><h2>Plantas avaliadas</h2><p class="h" id="tab3H"></p><div class="scroll"><table id="tab3"></table></div></div>
+    </div>
+  </div></main>
+</section>
+
+<!-- ===================== FOTOS ===================== -->
+<section id="tab-fotos" class="tab" hidden><main class="band"><div class="wrap">
+  <div class="card" id="upCard">
+    <h2>Enviar foto em grupo</h2>
+    <p class="h">Uma foto por tratamento, fazenda e estádio. A foto é analisada aqui mesmo: o índice de verde (falso NDVI) separa planta de solo e calcula quanto a soja está fechando a rua.</p>
+    <div class="formgrid">
+      <label class="f">Produtor<select id="uP"></select></label>
+      <label class="f">Fazenda<select id="uF"></select></label>
+      <label class="f">Tratamento<select id="uT"></select></label>
+      <label class="f">Estádio<select id="uE"></select></label>
+      <label class="f">Data da foto<input type="date" id="uD"></label>
+      <label class="f">Foto<input type="file" id="uFile" accept="image/*"></label>
+    </div>
+    <div id="anal" hidden>
+      <div class="pair">
+        <figure><div class="frame"><canvas id="cvO"></canvas></div><figcaption>Foto original</figcaption></figure>
+        <figure><div class="frame"><canvas id="cvN"></canvas></div><figcaption>Falso NDVI <span class="ramp"></span></figcaption></figure>
+      </div>
+      <div class="res"><div><span class="big" id="covOut">–</span><span>cobertura verde</span></div>
+        <label class="f grow">Sensibilidade do verde (limiar ExG <b id="limOut">20</b>)<input type="range" id="lim" min="0" max="60" value="20"></label>
+        <button class="btn gold" type="button" id="saveFoto">Salvar foto e cobertura</button></div>
+    </div>
   </div>
 
-  <div class="grid2 sect" style="align-items:start">
-    <div class="card"><h2 id="conT">Consistência entre talhões</h2><p class="h" id="conH"></p><div class="rows" id="con"></div></div>
-    <div class="card"><h2>Insights</h2><p class="h">Gerados automaticamente a partir dos filtros</p><ul class="ins" id="ins"></ul></div>
-  </div>
-
-  <div class="card sect"><h2>Resumo por tratamento</h2><p class="h" id="tabH"></p><div class="scroll"><table id="tab"></table></div></div>
-  <div class="card sect"><h2>Por produtor, fazenda e talhão</h2><p class="h" id="tab2H"></p><div class="scroll"><table id="tab2"></table></div></div>
-
-  <div class="card sect"><h2>Comparação de fotos</h2>
-    <p class="h">Foto zenital do ponto 1 de cada tratamento no talhão e estádio escolhidos. Sem foto enviada, aparece uma ilustração proporcional à cobertura medida.</p>
-    <div class="psel">
-      <label class="f">Talhão<select id="pT"></select></label><label class="f">Estádio<select id="pE"></select></label>
-      <label class="f">Lado esquerdo<select id="pA"></select></label><label class="f">Lado direito<select id="pB"></select></label></div>
+  <div class="card sect">
+    <h2>Comparação lado a lado</h2>
+    <div class="formgrid">
+      <label class="f">Produtor<select id="cP"></select></label>
+      <label class="f">Fazenda<select id="cF"></select></label>
+      <label class="f">Estádio<select id="cE"></select></label>
+      <label class="f">Mostrar<select id="cMode"><option value="foto">Foto original</option><option value="mapa">Falso NDVI</option></select></label>
+    </div>
     <div class="photos" id="ph"></div>
-    <h3 style="margin:22px 0 8px">Lado a lado — arraste</h3>
+    <h3 style="margin:22px 0 8px">Deslize para comparar</h3>
+    <div class="formgrid"><label class="f">Esquerda<select id="pA"></select></label><label class="f">Direita<select id="pB"></select></label></div>
     <div class="cmp" id="cmp"><div class="ly" id="lyB"></div><div class="ly top" id="lyA"></div><div class="hand" id="hand"></div>
       <span class="tag" id="tgA" style="left:10px"></span><span class="tag" id="tgB" style="right:10px"></span></div>
     <input type="range" id="rg" min="0" max="100" value="50" aria-label="Posição da comparação">
   </div>
-  </div>
+</div></main></section>
 
-  <div class="card sect"><h2>Dados</h2>
-    <p class="h">Modelo de envio: <a href="Modelo_Avaliacoes_Estruturacao_Soja.xlsx">Modelo_Avaliacoes_Estruturacao_Soja.xlsx</a> (abas Avaliacoes, Cadastro_Talhoes e Dicionario).
-      Reenviar uma linha com o mesmo ID_Avaliacao atualiza o registro. Fotos: o nome do arquivo deve ser igual à coluna Foto_Arquivo.</p>
-    <details><summary>Ver dados carregados (primeiras 50 linhas)</summary><div class="scroll"><table id="raw"></table></div></details>
-    <details id="adminBox" hidden><summary>Membros da equipe (administrador)</summary>
-      <form id="addMember" class="madd">
-        <label class="f">E-mail<input type="email" id="mEmail" required></label>
-        <label class="f">Nome<input type="text" id="mNome"></label>
-        <label class="f">Papel<select id="mPapel"><option value="avaliador">Avaliador (vê e envia)</option><option value="leitor">Leitor (só vê)</option><option value="admin">Administrador</option></select></label>
-        <label class="f">Senha<input type="password" id="mSenha" minlength="6" autocomplete="new-password" placeholder="obrigatória para novo usuário"></label>
-        <button class="btn gold" type="submit" id="mSave">Salvar</button>
+<!-- ===================== PLANILHAS ===================== -->
+<section id="tab-planilhas" class="tab" hidden><main class="band"><div class="wrap">
+  <div class="grid2" style="align-items:start">
+    <div class="card"><h2>1. Baixar planilha base</h2>
+      <p class="h">Gera a planilha do produtor com todas as fazendas e tratamentos, 5 plantas por tratamento. Preencha altura (cm) e estande (plantas por metro de linha) de cada planta/ponto.</p>
+      <form id="dlForm" class="formgrid">
+        <label class="f">Produtor<select id="dP" required></select></label>
+        <label class="f">Estádio<select id="dE" required></select></label>
+        <label class="f">Data da avaliação<input type="date" id="dD"></label>
+        <button class="btn gold" type="submit">Baixar planilha (.xlsx)</button>
       </form>
-      <p class="h">Para trocar a senha de alguém, digite o e-mail dessa pessoa, o papel e a nova senha, e clique em Salvar. Deixe a senha em branco para mudar só o papel ou o nome.</p>
-      <div class="scroll"><table id="mTab"></table></div>
-    </details>
+    </div>
+    <div class="card" id="sendCard"><h2>2. Enviar planilha preenchida</h2>
+      <p class="h">Envie a planilha com os dados da época. Reenviar a mesma fazenda, tratamento, estádio e planta substitui os valores anteriores.</p>
+      <label class="btn gold" style="width:max-content">Escolher planilha<input type="file" id="fx" accept=".xlsx,.xls"></label>
+      <div id="sendRes" class="h" style="margin-top:12px"></div>
+    </div>
   </div>
-</div></main>
+</div></main></section>
+
+<!-- ===================== CADASTRO ===================== -->
+<section id="tab-cadastro" class="tab" hidden><main class="band"><div class="wrap">
+  <div class="grid2" style="align-items:start">
+    <div class="card"><h2>Produtores</h2>
+      <form id="prodForm" class="formgrid editOnly">
+        <input type="hidden" id="prId">
+        <label class="f">Nome do produtor<input type="text" id="prNome" required></label>
+        <label class="f">Contato (opcional)<input type="text" id="prCont"></label>
+        <button class="btn gold" type="submit" id="prSave">Salvar produtor</button>
+      </form>
+      <div class="scroll"><table id="prTab"></table></div>
+    </div>
+    <div class="card"><h2>Fazendas</h2>
+      <form id="fazForm" class="formgrid editOnly">
+        <input type="hidden" id="fzId">
+        <label class="f">Produtor<select id="fzP" required></select></label>
+        <label class="f">Fazenda<input type="text" id="fzNome" required></label>
+        <label class="f">Município<input type="text" id="fzMun"></label>
+        <label class="f">UF<input type="text" id="fzUF" maxlength="2"></label>
+        <label class="f">Cultivar<input type="text" id="fzCult"></label>
+        <label class="f">Semeadura<input type="date" id="fzSem"></label>
+        <label class="f">Emergência<input type="date" id="fzEme"></label>
+        <label class="f">Espaçamento (cm)<input type="number" id="fzEsp" min="20" max="120" step="1"></label>
+        <button class="btn gold" type="submit" id="fzSave">Salvar fazenda</button>
+      </form>
+      <p class="h">A data de emergência calcula os dias após emergência (DAE). O espaçamento converte plantas por metro em plantas por hectare.</p>
+      <div class="scroll"><table id="fzTab"></table></div>
+    </div>
+  </div>
+</div></main></section>
+
+<!-- ===================== EQUIPE ===================== -->
+<section id="tab-equipe" class="tab" hidden><main class="band"><div class="wrap">
+  <div class="card"><h2>Equipe</h2>
+    <form id="addMember" class="formgrid">
+      <label class="f">E-mail<input type="email" id="mEmail" required></label>
+      <label class="f">Nome<input type="text" id="mNome"></label>
+      <label class="f">Papel<select id="mPapel"><option value="avaliador">Avaliador (vê e envia)</option><option value="leitor">Leitor (só vê)</option><option value="admin">Administrador</option></select></label>
+      <label class="f">Senha<input type="password" id="mSenha" minlength="6" autocomplete="new-password" placeholder="obrigatória para novo usuário"></label>
+      <button class="btn gold" type="submit" id="mSave">Salvar</button>
+    </form>
+    <p class="h">Para trocar a senha de alguém, clique em Editar, digite a nova senha e salve. Senha em branco muda só papel ou nome.</p>
+    <div class="scroll"><table id="mTab"></table></div>
+  </div>
+</div></main></section>
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="config.js"></script>
+<script src="config.js?v=3"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="app.js"></script>
+<script src="app.js?v=3"></script>
 </body>
 </html>
