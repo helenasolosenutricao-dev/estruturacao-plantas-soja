@@ -202,29 +202,14 @@ async function boot(){
   await loadDB();
 }
 
-/* ---------- login (e-mail e senha) ---------- */
-let SIGNUP=false;const here=location.origin+location.pathname;
-const ptErr=m=>/Invalid login/i.test(m)?"E-mail ou senha incorretos.":/not confirmed/i.test(m)?"Confirme seu e-mail pelo link que enviamos antes de entrar.":
-  /already registered/i.test(m)?"Este e-mail já tem senha. Use “Entrar” ou “Esqueci minha senha”.":/at least 6/i.test(m)?"A senha precisa ter pelo menos 6 caracteres.":
-  /rate limit/i.test(m)?"Muitas tentativas em pouco tempo. Aguarde alguns minutos.":m;
-const setMode=su=>{SIGNUP=su;$("gateTitle").textContent=su?"Criar senha":"Entrar";$("pass2Wrap").hidden=!su;$("pass2").required=su;
-  $("pass").autocomplete=su?"new-password":"current-password";$("sendLink").textContent=su?"Criar senha":"Entrar";
-  $("toggleMode").textContent=su?"Já tenho senha — entrar":"Primeiro acesso? Criar senha";
-  $("gateMsg").textContent=su?"Use o e-mail cadastrado pela coordenação e escolha uma senha (mínimo 6 caracteres).":"Entre com seu e-mail e senha da equipe."};
-$("toggleMode").onclick=()=>setMode(!SIGNUP);
+/* ---------- login (e-mail e senha; contas criadas só pela administração) ---------- */
+const here=location.origin+location.pathname;
+const ptErr=m=>/Invalid login/i.test(m)?"E-mail ou senha incorretos.":/not confirmed/i.test(m)?"Conta ainda não confirmada. Fale com a administradora.":
+  /at least 6/i.test(m)?"A senha precisa ter pelo menos 6 caracteres.":/rate limit/i.test(m)?"Muitas tentativas em pouco tempo. Aguarde alguns minutos.":m;
 $("loginForm").addEventListener("submit",async e=>{e.preventDefault();if(!SB)return;
   const email=$("email").value.trim().toLowerCase(),password=$("pass").value;
-  if(SIGNUP&&password!==$("pass2").value)return toast("As senhas não conferem.",1);
-  $("sendLink").disabled=true;
-  if(SIGNUP){const{data,error}=await SB.auth.signUp({email,password,options:{emailRedirectTo:here}});$("sendLink").disabled=false;
-    if(error)return toast(ptErr(error.message),1);
-    if(data.session)return;
-    setMode(false);$("gateMsg").innerHTML=`Senha criada para <b>${esc(email)}</b>. Enviamos um e-mail de confirmação — clique no link e depois entre aqui com sua senha.`;return}
-  const{error}=await SB.auth.signInWithPassword({email,password});$("sendLink").disabled=false;
+  $("sendLink").disabled=true;const{error}=await SB.auth.signInWithPassword({email,password});$("sendLink").disabled=false;
   if(error)return toast(ptErr(error.message),1)});
-$("forgot").onclick=async()=>{const email=$("email").value.trim().toLowerCase();if(!email)return toast("Digite seu e-mail acima e clique de novo em “Esqueci minha senha”.",1);
-  const{error}=await SB.auth.resetPasswordForEmail(email,{redirectTo:here});
-  if(error)return toast(ptErr(error.message),1);$("gateMsg").innerHTML=`Se <b>${esc(email)}</b> tiver conta, chegará um e-mail com o link para criar uma nova senha.`};
 $("newPassForm").addEventListener("submit",async e=>{e.preventDefault();
   if($("np1").value!==$("np2").value)return toast("As senhas não conferem.",1);
   const{error}=await SB.auth.updateUser({password:$("np1").value});if(error)return toast(ptErr(error.message),1);
@@ -272,16 +257,22 @@ $("fp").addEventListener("change",async e=>{const files=[...e.target.files];e.ta
     const{data}=await SB.rpc("vincular_foto",{arquivo:f.name,caminho:path});lig+=data?1:0;if(!data)fail.push(f.name+" (sem linha com esse Foto_Arquivo)")}
   toast(`${ok} foto(s) enviada(s), ${lig} ligada(s) a avaliações.`+(fail.length?` Verificar: ${fail.slice(0,4).join(", ")}`:""),!!fail.length);await loadDB()});
 
-/* ---------- membros (admin) ---------- */
+/* ---------- membros (admin): cria conta, define senha e papel ---------- */
+async function adminCall(body){const{data,error}=await SB.functions.invoke("gerenciar-usuario",{body});
+  if(error){let m=error.message;try{const j=await error.context.json();m=j.erro||m}catch{}throw new Error(m)}
+  if(data?.erro)throw new Error(data.erro);return data}
 async function loadMembers(){const{data,error}=await SB.from("membros").select("*").order("papel").order("email");if(error)return;
   $("mTab").innerHTML="<tr><th>E-mail</th><th class='tl'>Nome</th><th class='tl'>Papel</th><th></th></tr>"+data.map(m=>
-    `<tr><td>${esc(m.email)}</td><td class="tl">${esc(m.nome)}</td><td class="tl">${esc(m.papel)}</td><td><button class="mini" data-del="${esc(m.email)}" type="button">Remover</button></td></tr>`).join("")}
-$("addMember").addEventListener("submit",async e=>{e.preventDefault();
-  const{error}=await SB.from("membros").upsert({email:$("mEmail").value.trim().toLowerCase(),nome:$("mNome").value.trim()||null,papel:$("mPapel").value});
-  if(error)return toast(error.message,1);toast("Membro salvo. Ele já pode entrar com o e-mail.");e.target.reset();loadMembers()});
-$("mTab").addEventListener("click",async e=>{const em=e.target.dataset?.del;if(!em)return;
-  if(e.target.dataset.sure!=="1"){e.target.dataset.sure="1";e.target.textContent="Confirmar";return}
-  const{error}=await SB.from("membros").delete().eq("email",em);if(error)return toast(error.message,1);loadMembers()});
+    `<tr><td>${esc(m.email)}</td><td class="tl">${esc(m.nome)}</td><td class="tl">${esc(m.papel)}</td><td><button class="mini" data-edit="${esc(m.email)}" data-nome="${esc(m.nome)}" data-papel="${esc(m.papel)}" type="button">Editar</button> <button class="mini" data-del="${esc(m.email)}" type="button">Remover</button></td></tr>`).join("")}
+$("addMember").addEventListener("submit",async e=>{e.preventDefault();$("mSave").disabled=true;
+  try{const senha=$("mSenha").value;await adminCall({acao:"salvar",email:$("mEmail").value.trim().toLowerCase(),nome:$("mNome").value.trim(),papel:$("mPapel").value,senha:senha||null});
+    toast(senha?"Usuário salvo com a senha definida. Envie a senha para a pessoa por um canal seguro.":"Usuário atualizado.");e.target.reset();loadMembers()}
+  catch(err){toast(err.message,1)}finally{$("mSave").disabled=false}});
+$("mTab").addEventListener("click",async e=>{const b=e.target;
+  if(b.dataset?.edit){$("mEmail").value=b.dataset.edit;$("mNome").value=b.dataset.nome||"";$("mPapel").value=b.dataset.papel;$("mSenha").value="";$("mSenha").focus();return}
+  const em=b.dataset?.del;if(!em)return;
+  if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Confirmar remoção";return}
+  try{await adminCall({acao:"remover",email:em});toast("Usuário removido.");loadMembers()}catch(err){toast(err.message,1)}});
 
 for(const id of["sP","sF","sT"])$(id).addEventListener("change",()=>{cascade();render()});
 for(const id of["sE","sV"])$(id).addEventListener("change",render);

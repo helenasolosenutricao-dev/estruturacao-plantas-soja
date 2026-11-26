@@ -29,10 +29,8 @@
     <form id="loginForm">
       <label class="f">E-mail<input type="email" id="email" required autocomplete="email" placeholder="nome@empresa.com.br"></label>
       <label class="f">Senha<input type="password" id="pass" required minlength="6" autocomplete="current-password" placeholder="mínimo 6 caracteres"></label>
-      <label class="f" id="pass2Wrap" hidden>Confirmar senha<input type="password" id="pass2" minlength="6" autocomplete="new-password"></label>
       <button class="btn gold" type="submit" id="sendLink">Entrar</button>
-      <div class="links"><button class="lnk" type="button" id="toggleMode">Primeiro acesso? Criar senha</button>
-        <button class="lnk" type="button" id="forgot">Esqueci minha senha</button></div>
+      <p class="h" style="margin:0">Esqueceu a senha ou ainda não tem acesso? Fale com a administradora do projeto.</p>
     </form>
     <form id="newPassForm" hidden>
       <label class="f">Nova senha<input type="password" id="np1" required minlength="6" autocomplete="new-password"></label>
@@ -95,8 +93,10 @@
         <label class="f">E-mail<input type="email" id="mEmail" required></label>
         <label class="f">Nome<input type="text" id="mNome"></label>
         <label class="f">Papel<select id="mPapel"><option value="avaliador">Avaliador (vê e envia)</option><option value="leitor">Leitor (só vê)</option><option value="admin">Administrador</option></select></label>
-        <button class="btn gold" type="submit">Adicionar</button>
+        <label class="f">Senha<input type="password" id="mSenha" minlength="6" autocomplete="new-password" placeholder="obrigatória para novo usuário"></label>
+        <button class="btn gold" type="submit" id="mSave">Salvar</button>
       </form>
+      <p class="h">Para trocar a senha de alguém, digite o e-mail dessa pessoa, o papel e a nova senha, e clique em Salvar. Deixe a senha em branco para mudar só o papel ou o nome.</p>
       <div class="scroll"><table id="mTab"></table></div>
     </details>
   </div>
