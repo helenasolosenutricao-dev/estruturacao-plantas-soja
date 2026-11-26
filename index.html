@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Estruturação de Plantas · Soja</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="band"><div class="wrap">
+  <div class="topline"><span>Grower · Projeto Estruturação de Plantas · Soja</span><span id="who"></span></div>
+  <h1 id="title">Estruturação de plantas de soja</h1>
+  <div class="sub" id="sub"></div>
+  <div class="note" id="srcNote"></div>
+  <div class="btns" id="actions" hidden>
+    <label class="btn gold" id="bxWrap">Enviar planilha (.xlsx)<input type="file" id="fx" accept=".xlsx,.xls,.csv"></label>
+    <label class="btn" id="bpWrap">Enviar fotos<input type="file" id="fp" accept="image/*" multiple></label>
+    <button class="btn" id="reload" type="button">Atualizar dados</button>
+    <button class="btn" id="logout" type="button">Sair</button>
+  </div>
+</div></header>
+
+<section class="band" id="gate" hidden><div class="wrap">
+  <div class="card login">
+    <h2>Entrar</h2>
+    <p class="h" id="gateMsg">Digite seu e-mail da equipe. Você recebe um link de acesso — não precisa de senha.</p>
+    <form id="loginForm">
+      <label class="f">E-mail<input type="email" id="email" required autocomplete="email" placeholder="nome@empresa.com.br"></label>
+      <button class="btn gold" type="submit" id="sendLink">Enviar link de acesso</button>
+    </form>
+    <button class="btn ghost" id="demoBtn" type="button">Ver com dados de exemplo</button>
+  </div>
+</div></section>
+
+<div id="app" hidden>
+<div class="filters"><div class="wrap">
+  <label class="f">Produtor<select id="sP"></select></label>
+  <label class="f">Fazenda<select id="sF"></select></label>
+  <label class="f">Talhão<select id="sT"></select></label>
+  <label class="f">Estádio para comparação<select id="sE"></select></label>
+  <label class="f">Variável<select id="sV"></select></label>
+</div></div>
+
+<main class="band"><div class="wrap">
+  <div class="card empty" id="empty" hidden><h2>Ainda não há avaliações no banco</h2>
+    <p>Baixe a <a href="Modelo_Avaliacoes_Estruturacao_Soja.xlsx">planilha modelo</a>, preencha a aba <b>Avaliacoes</b> e use “Enviar planilha”.</p></div>
+  <div id="dash">
+  <div class="kpis" id="kpis"></div>
+
+  <div class="grid2 sect">
+    <div class="card"><h2 id="evoT">Evolução</h2><p class="h">Média por tratamento ao longo dos dias após emergência (DAE)</p>
+      <div class="legend" id="leg"></div><div class="fig"><canvas id="cEvo"></canvas></div></div>
+    <div class="card"><h2 id="barT">Comparação</h2><p class="h">Média ± desvio padrão no estádio selecionado</p>
+      <div class="fig"><canvas id="cBar"></canvas></div></div>
+  </div>
+
+  <div class="grid2 sect" style="align-items:start">
+    <div class="card"><h2 id="conT">Consistência entre talhões</h2><p class="h" id="conH"></p><div class="rows" id="con"></div></div>
+    <div class="card"><h2>Insights</h2><p class="h">Gerados automaticamente a partir dos filtros</p><ul class="ins" id="ins"></ul></div>
+  </div>
+
+  <div class="card sect"><h2>Resumo por tratamento</h2><p class="h" id="tabH"></p><div class="scroll"><table id="tab"></table></div></div>
+  <div class="card sect"><h2>Por produtor, fazenda e talhão</h2><p class="h" id="tab2H"></p><div class="scroll"><table id="tab2"></table></div></div>
+
+  <div class="card sect"><h2>Comparação de fotos</h2>
+    <p class="h">Foto zenital do ponto 1 de cada tratamento no talhão e estádio escolhidos. Sem foto enviada, aparece uma ilustração proporcional à cobertura medida.</p>
+    <div class="psel">
+      <label class="f">Talhão<select id="pT"></select></label><label class="f">Estádio<select id="pE"></select></label>
+      <label class="f">Lado esquerdo<select id="pA"></select></label><label class="f">Lado direito<select id="pB"></select></label></div>
+    <div class="photos" id="ph"></div>
+    <h3 style="margin:22px 0 8px">Lado a lado — arraste</h3>
+    <div class="cmp" id="cmp"><div class="ly" id="lyB"></div><div class="ly top" id="lyA"></div><div class="hand" id="hand"></div>
+      <span class="tag" id="tgA" style="left:10px"></span><span class="tag" id="tgB" style="right:10px"></span></div>
+    <input type="range" id="rg" min="0" max="100" value="50" aria-label="Posição da comparação">
+  </div>
+  </div>
+
+  <div class="card sect"><h2>Dados</h2>
+    <p class="h">Modelo de envio: <a href="Modelo_Avaliacoes_Estruturacao_Soja.xlsx">Modelo_Avaliacoes_Estruturacao_Soja.xlsx</a> (abas Avaliacoes, Cadastro_Talhoes e Dicionario).
+      Reenviar uma linha com o mesmo ID_Avaliacao atualiza o registro. Fotos: o nome do arquivo deve ser igual à coluna Foto_Arquivo.</p>
+    <details><summary>Ver dados carregados (primeiras 50 linhas)</summary><div class="scroll"><table id="raw"></table></div></details>
+    <details id="adminBox" hidden><summary>Membros da equipe (administrador)</summary>
+      <form id="addMember" class="madd">
+        <label class="f">E-mail<input type="email" id="mEmail" required></label>
+        <label class="f">Nome<input type="text" id="mNome"></label>
+        <label class="f">Papel<select id="mPapel"><option value="avaliador">Avaliador (vê e envia)</option><option value="leitor">Leitor (só vê)</option><option value="admin">Administrador</option></select></label>
+        <button class="btn gold" type="submit">Adicionar</button>
+      </form>
+      <div class="scroll"><table id="mTab"></table></div>
+    </details>
+  </div>
+</div></main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
