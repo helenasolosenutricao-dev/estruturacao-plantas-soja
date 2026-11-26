@@ -6,7 +6,7 @@
 <title>Estruturação de Plantas · Soja</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=6">
+<link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
 <header class="band"><div class="wrap">
@@ -173,13 +173,14 @@
       <button class="btn gold" type="button" id="edSave" disabled>Salvar alterações</button>
       <button class="mini" type="button" id="edUndo">Desfazer alterações</button>
       <button class="mini" type="button" id="edGen">Criar linhas vazias (3 pontos × 5 medições × tratamentos)</button>
+      <button class="mini danger" type="button" id="edDelAll" hidden>Excluir avaliação</button>
       <span class="h" id="edInfo" style="align-self:center"></span>
     </div>
     <div class="scroll"><table id="edPl" class="edit"></table></div>
   </div>
   <div class="card sect">
     <h2>Fotos de cobertura</h2>
-    <p class="h">Para trocar uma foto, envie de novo na aba <b>Cobertura (fotos)</b> com o mesmo ponto. Aqui você pode corrigir a data ou excluir uma amostra (só administradora).</p>
+    <p class="h">Para trocar uma foto, envie de novo na aba <b>Cobertura (fotos)</b> com o mesmo ponto. Aqui você pode corrigir a data ou excluir uma foto (só administradora). Para apagar tudo de uma fazenda num estádio (medições e fotos), escolha a fazenda e o estádio no filtro e use <b>Excluir avaliação</b>.</p>
     <div class="scroll"><table id="edGc" class="edit"></table></div>
   </div>
   </div></main>
@@ -238,6 +239,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="app.js?v=6"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>

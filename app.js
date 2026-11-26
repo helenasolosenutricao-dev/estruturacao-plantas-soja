@@ -263,21 +263,26 @@ const selTR=()=>[...$("trSel").querySelectorAll("input:checked")].map(i=>i.value
 function renderTrSel(){if($("trSel").childElementCount)return;
   $("trSel").innerHTML=TR.map(t=>`<label><input type="checkbox" value="${esc(t)}" checked><span class="dot" style="background:${COL[t]}"></span>${esc(t)}</label>`).join("")+`<button class="mini" type="button" id="trAll">Todos os tratamentos</button>`;
   $("trSel").addEventListener("change",renderFotos);$("trAll").onclick=()=>{$("trSel").querySelectorAll("input").forEach(i=>i.checked=true);renderFotos()}}
+const delB=(k,id,inline)=>PAPEL==="admin"&&MODE!=="demo"?`<button type="button" class="del${inline?" inl":""}" data-delk="${k}" data-delid="${esc(id)}" title="Excluir esta foto">Excluir</button>`:"";
+async function delFoto(b){if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Confirmar exclusão";b.classList.add("sure");setTimeout(()=>{if(b.isConnected&&b.dataset.sure==="1"){b.dataset.sure="";b.textContent="Excluir";b.classList.remove("sure")}},5000);return}
+  const K=KIND[b.dataset.delk||""],r=K.arr().find(x=>String(x.id)===b.dataset.delid);if(!r)return;b.disabled=true;
+  const{error}=await SB.from(K.tab).delete().eq("id",r.id);if(error){b.disabled=false;return toast(error.message,1)}
+  await SB.storage.from("fotos").remove([r.foto_path,r.mapa_path].filter(Boolean));toast("Foto excluída.");await loadDB()}
 function renderFotos(){
   renderTrSel();const mode=$("cMode").value,ts=selTR();
   const G=GER.find(g=>g.fazenda_id===$("cF").value&&g.estadio===$("cE").value),gu=G&&URL_[mode==="mapa"?G.mapa_path:G.foto_path];
   const all=GC.filter(r=>r.fazenda_id===$("cF").value&&r.estadio===$("cE").value),ms=st(all.map(r=>r.cobertura_pct));
-  $("geral").hidden=!G;if(G)$("geral").innerHTML=`<div class="gcap"><h3>Foto geral · todas as parcelas</h3><span>cobertura na foto geral <b>${fmt(G.cobertura_pct)}%</b></span>${ms.n?`<span>média das amostras de todos os tratamentos <b>${fmt(ms.m)}%</b></span>`:""}</div>
+  $("geral").hidden=!G;if(G)$("geral").innerHTML=`<div class="gcap"><h3>Foto geral · todas as parcelas</h3>${delB("geral",G.id,1)}<span>cobertura na foto geral <b>${fmt(G.cobertura_pct)}%</b></span>${ms.n?`<span>média das amostras de todos os tratamentos <b>${fmt(ms.m)}%</b></span>`:""}</div>
     ${gu?`<div class="gimg" data-geral="1"><img src="${esc(gu)}" alt="Foto geral"></div>`:""}`;$("bigGrid").style.setProperty("--n",Math.max(ts.length,1));
   const nA=Math.max(NPT,...GC.filter(r=>r.fazenda_id===$("cF").value&&r.estadio===$("cE").value).map(r=>r.amostra||1));
   let h=ts.map(t=>{const S=st(gcRows(t).map(r=>r.cobertura_pct));return`<div class="hd" style="background:${COL[t]}"><span>${esc(t)}</span><b>${isNaN(S.m)?"–":fmt(S.m)+"%"}</b><span>${S.n?`grau de cover · ${S.n} ponto(s)${S.n>1?` · ± ${fmt(S.sd)}`:""}`:"sem fotos"}</span></div>`}).join("");
   const pfs=PF.filter(r=>r.fazenda_id===$("cF").value&&r.estadio===$("cE").value),nP=pfs.length?Math.max(NPT,...pfs.map(r=>r.ponto||1)):0;
   if(nP)h+=`<div class="sec">Plantas inteiras</div>`;
   for(let a=1;a<=nP;a++)h+=ts.map(t=>{const pf=pfs.find(r=>r.tratamento===t&&(r.ponto||1)===a),u=pf&&URL_[pf.foto_path];
-    return u?`<button type="button" class="cell tall" data-pl="${esc(t)}" data-pp="${a}"><img src="${esc(u)}" alt="Plantas inteiras ${esc(t)} ponto ${a}"><span class="bd">Plantas inteiras · ponto ${a}</span></button>`:`<div class="cell tall" style="cursor:default"><span class="nf">${esc(t)} · plantas ponto ${a}: sem foto</span></div>`}).join("");
+    return u?`<div role="button" tabindex="0" class="cell tall" data-pl="${esc(t)}" data-pp="${a}"><img src="${esc(u)}" alt="Plantas inteiras ${esc(t)} ponto ${a}"><span class="bd">Plantas inteiras · ponto ${a}</span>${delB("plantas",pf.id)}</div>`:`<div class="cell tall" style="cursor:default"><span class="nf">${esc(t)} · plantas ponto ${a}: sem foto</span></div>`}).join("");
   if(nP)h+=`<div class="sec">Ground Cover (falso NDVI)</div>`;
   for(let a=1;a<=nA;a++)h+=ts.map(t=>{const g=gcRows(t).find(r=>(r.amostra||1)===a),im=imgOf(g,mode);
-    return im?`<button type="button" class="cell" data-t="${esc(t)}" data-a="${a}">${im}<span class="bd">Ponto ${a} · ${fmt(g.cobertura_pct)}%</span></button>`:`<div class="cell" style="cursor:default"><span class="nf">${esc(t)} · ponto ${a}: sem foto</span></div>`}).join("");
+    return im?`<div role="button" tabindex="0" class="cell" data-t="${esc(t)}" data-a="${a}">${im}<span class="bd">Ponto ${a} · ${fmt(g.cobertura_pct)}%</span>${g.foto_path?delB("",g.id):""}</div>`:`<div class="cell" style="cursor:default"><span class="nf">${esc(t)} · ponto ${a}: sem foto</span></div>`}).join("");
   $("bigGrid").innerHTML=h;
   const pm=$("pMode").value,a=+$("pS").value,A=$("pA").value,B=$("pB").value,gA=gcRows(A).find(r=>(r.amostra||1)===a),gB=gcRows(B).find(r=>(r.amostra||1)===a);
   const nf=t=>`<div style="display:grid;place-items:center;color:#fff;height:100%">${esc(t)} · ponto ${a}: sem foto</div>`;
@@ -285,10 +290,11 @@ function renderFotos(){
   $("tgA").textContent=`${A}${gA?` · ${fmt(gA.cobertura_pct)}%`:""}`;$("tgA").style.background=COL[A];$("tgB").textContent=`${B}${gB?` · ${fmt(gB.cobertura_pct)}%`:""}`;$("tgB").style.background=COL[B];slide();
 }
 const slide=()=>{const v=$("rg").value;$("lyA").style.clipPath=`inset(0 ${100-v}% 0 0)`;$("hand").style.left=v+"%"};
-$("bigGrid").addEventListener("click",e=>{const pc=e.target.closest(".cell[data-pl]");if(pc){$("lbImg").src=pc.querySelector("img").src;$("lbCap").textContent=`${pc.dataset.pl} · plantas inteiras · ponto ${pc.dataset.pp} · ${$("cE").value}`;$("lb").hidden=false;return}
+$("bigGrid").addEventListener("click",e=>{const db=e.target.closest("button.del");if(db){e.stopPropagation();return delFoto(db)}
+  const pc=e.target.closest(".cell[data-pl]");if(pc){$("lbImg").src=pc.querySelector("img").src;$("lbCap").textContent=`${pc.dataset.pl} · plantas inteiras · ponto ${pc.dataset.pp} · ${$("cE").value}`;$("lb").hidden=false;return}
   const c=e.target.closest(".cell[data-t]");if(!c)return;const g=gcRows(c.dataset.t).find(r=>(r.amostra||1)===+c.dataset.a);
   const u=URL_[$("cMode").value==="mapa"?g.mapa_path:g.foto_path];if(!u)return;$("lbImg").src=u;$("lbCap").textContent=`${g.tratamento} · ponto ${g.amostra||1} · ${g.estadio} · grau de cover ${fmt(g.cobertura_pct)}%`;$("lb").hidden=false});
-$("geral").addEventListener("click",e=>{if(!e.target.closest("[data-geral]"))return;$("lbImg").src=e.target.closest("[data-geral]").querySelector("img").src;$("lbCap").textContent="Foto geral · todas as parcelas";$("lb").hidden=false});
+$("geral").addEventListener("click",e=>{const db=e.target.closest("button.del");if(db)return delFoto(db);if(!e.target.closest("[data-geral]"))return;$("lbImg").src=e.target.closest("[data-geral]").querySelector("img").src;$("lbCap").textContent="Foto geral · todas as parcelas";$("lb").hidden=false});
 $("lb").addEventListener("click",()=>{$("lb").hidden=true;$("lbImg").src=""});
 
 /* ====================== planilha base ====================== */
@@ -338,6 +344,7 @@ function renderEditar(){
       <td class="tl"><input type="date" data-k="data" value="${esc(r.data||"")}"></td><td>${r.dae??"–"}</td><td class="tl"><input type="text" data-k="observacoes" value="${esc(r.observacoes||"")}"></td>
       ${adm?`<td><button class="mini" type="button" data-delpl="${esc(r.id)}">Excluir</button></td>`:""}</tr>`).join(""):`<tr><td colspan="11">Nenhuma medição neste filtro. Escolha fazenda e estádio e use “Criar linhas vazias”, ou envie a planilha.</td></tr>`);
   $("edInfo").textContent=`${rows.length} medição(ões)`;$("edSave").disabled=true;
+  {const b=$("edDelAll"),S=evalSel();b.hidden=!adm;b.dataset.sure="";b.classList.remove("sure");b.textContent=S?`Excluir avaliação (${fazById(S.F)?.nome||""} · ${S.E})`:"Excluir avaliação (escolha fazenda e estádio)"}
   const P=$("eP").value,F=$("eF").value,E=$("eE").value,g=GC.filter(r=>(!P||r.produtor_id===P)&&(!F||r.fazenda_id===F)&&(!E||r.estadio===E)).sort((a,b)=>a.fazenda.localeCompare(b.fazenda)||ORD.indexOf(a.estadio)-ORD.indexOf(b.estadio)||trOrd(a.tratamento)-trOrd(b.tratamento)||(a.amostra||1)-(b.amostra||1));
   const gg=GER.filter(r=>(!F||r.fazenda_id===F)&&(!P||fazById(r.fazenda_id)?.produtor_id===P)&&(!E||r.estadio===E));
   const pp=PF.filter(r=>(!F||r.fazenda_id===F)&&(!P||r.produtor_id===P)&&(!E||r.estadio===E));
@@ -350,6 +357,16 @@ $("edPl").addEventListener("input",e=>{const tr=e.target.closest("tr[data-id]");
   const v=e.target.dataset.k==="altura_cm"?num(e.target.value):null;e.target.classList.toggle("err",v!=null&&(v<=0||v>250));
   const n=$("edPl").querySelectorAll("tr.dirty").length;$("edSave").disabled=!n;$("edInfo").textContent=`${n} linha(s) alterada(s)`});
 $("edUndo").onclick=renderEditar;
+function evalSel(){const F=$("eF").value,E=$("eE").value;if(!F||!E)return null;const m=r=>r.fazenda_id===F&&r.estadio===E;
+  return{F,E,pl:PL.filter(m),gc:GC.filter(m),pf:PF.filter(m),ge:GER.filter(m)}}
+$("edDelAll").onclick=async()=>{const b=$("edDelAll");if(MODE==="demo")return toast("No modo de exemplo nada é salvo.",1);
+  const S=evalSel();if(!S)return toast("Escolha a fazenda e o estádio da avaliação que quer excluir.",1);
+  const nF=S.gc.length+S.pf.length+S.ge.length;if(!S.pl.length&&!nF)return toast("Não há dados nesta fazenda e estádio.",1);
+  if(b.dataset.sure!=="1"){b.dataset.sure="1";b.classList.add("sure");b.textContent=`Confirmar: apagar ${S.pl.length} medição(ões) e ${nF} foto(s) de ${fazById(S.F)?.nome||""} em ${S.E}`;return}
+  b.disabled=true;
+  try{for(const t of["plantas","fotos_cobertura","fotos_plantas","fotos_gerais"]){const{error}=await SB.from(t).delete().eq("fazenda_id",S.F).eq("estadio",S.E);if(error)throw error}
+    const paths=[...S.gc,...S.pf,...S.ge].flatMap(r=>[r.foto_path,r.mapa_path]).filter(Boolean);for(let i=0;i<paths.length;i+=100)await SB.storage.from("fotos").remove(paths.slice(i,i+100));
+    toast(`Avaliação excluída: ${fazById(S.F)?.nome||""} · ${S.E}.`);await loadDB()}catch(err){toast("Não foi possível excluir: "+err.message,1)}finally{b.disabled=false}};
 $("edSave").onclick=async()=>{if(MODE==="demo")return toast("No modo de exemplo nada é salvo.",1);
   const trs=[...$("edPl").querySelectorAll("tr.dirty")];if($("edPl").querySelector("input.err"))return toast("Há altura fora do esperado (0 a 250 cm).",1);
   $("edSave").disabled=true;let ok=0;
