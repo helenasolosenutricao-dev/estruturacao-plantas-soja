@@ -3,7 +3,7 @@
 const TR=["Maxcel","Impulse","Stay Up","Controle"];
 const COL={"Maxcel":"#1e8a42","Impulse":"#2f6db5","Stay Up":"#c7861b","Controle":"#8c918a"};
 const ORD=["VE","VC","V1","V2","V3","V4","V5","V6","V7","V8","V9","V10","R1","R2","R3","R4","R5","R6","R7","R8"];
-const NPL=5;
+const NPL=5,NPT=3;
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const $=id=>document.getElementById(id);
 const fmt=(v,d=1)=>v==null||isNaN(v)?"–":Number(v).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -43,8 +43,8 @@ function demo(){
   PL=[];GC=[];let id=0;
   for(const f of FAZ){const p=prodById(f.produtor_id),sh=1+nr()*0.1,sg=1+nr()*0.05,stand=13+nr()*1.5;
     for(const t of TR)for(const[e,d]of ST){const ramp=e==="V4"?0.3:1,[eh,eg]=ef[t].map(x=>x*ramp),[bh,bg]=base[e];
-      for(let k=1;k<=NPL;k++)PL.push({id:++id,produtor_id:p.id,produtor:p.nome,fazenda_id:f.id,fazenda:f.nome,municipio:f.municipio,uf:f.uf,espacamento_cm:f.espacamento_cm,
-        tratamento:t,estadio:e,dae:d,planta:k,altura_cm:+(bh*sh*(1+eh)*(1+nr()*0.08)).toFixed(1),estande_pl_m:+(stand*(1+nr()*0.06)).toFixed(1)});
+      for(let pt=1;pt<=NPT;pt++){const ps=1+nr()*0.04;for(let k=1;k<=NPL;k++)PL.push({id:++id,produtor_id:p.id,produtor:p.nome,fazenda_id:f.id,fazenda:f.nome,municipio:f.municipio,uf:f.uf,espacamento_cm:f.espacamento_cm,
+        tratamento:t,estadio:e,dae:d,ponto:pt,planta:k,altura_cm:+(bh*sh*ps*(1+eh)*(1+nr()*0.08)).toFixed(1),estande_pl_m:Math.max(6,Math.round(stand*ps*(1+nr()*0.15)))})}
       for(let a=1;a<=5;a++)GC.push({id:"g"+id+"-"+a,produtor_id:p.id,produtor:p.nome,fazenda_id:f.id,fazenda:f.nome,tratamento:t,estadio:e,amostra:a,dae:d,cobertura_pct:+Math.min(98,bg*sg*(1+eg)*(1+nr()*0.07)).toFixed(1)})}}
 }
 
@@ -57,12 +57,12 @@ async function loadDB(){
     [PROD,FAZ,PL,GC,GER]=await Promise.all([SB.from("produtores").select("*").order("nome").then(r=>r.data||[]),
       SB.from("fazendas").select("*").order("nome").then(r=>r.data||[]),fetchAll("v_plantas"),fetchAll("v_cobertura"),
       SB.from("fotos_gerais").select("*").then(r=>r.data||[])]);
-    PL.forEach(r=>{r.altura_cm=num(r.altura_cm);r.estande_pl_m=num(r.estande_pl_m);r.espacamento_cm=num(r.espacamento_cm);r.dae=num(r.dae)});
+    PL.forEach(r=>{r.ponto=num(r.ponto)??1;r.altura_cm=num(r.altura_cm);r.estande_pl_m=num(r.estande_pl_m);r.espacamento_cm=num(r.espacamento_cm);r.dae=num(r.dae)});
     GC.forEach(r=>{r.cobertura_pct=num(r.cobertura_pct);r.dae=num(r.dae)});
     URL_={};const paths=[...GC,...GER].flatMap(g=>[g.foto_path,g.mapa_path]).filter(Boolean);
     for(let i=0;i<paths.length;i+=100){const{data}=await SB.storage.from("fotos").createSignedUrls(paths.slice(i,i+100),3600);
       (data||[]).forEach((u,k)=>{if(u.signedUrl)URL_[paths[i+k]]=u.signedUrl})}
-    $("srcNote").textContent=`Banco Supabase · ${PROD.length} produtor(es) · ${FAZ.length} fazenda(s) · ${PL.length} plantas medidas · ${GC.length} fotos de cobertura`;
+    $("srcNote").textContent=`Banco Supabase · ${PROD.length} produtor(es) · ${FAZ.length} fazenda(s) · ${PL.length} medições de altura/estande · ${GC.length} fotos de cobertura`;
   }catch(e){toast("Erro ao ler o banco: "+e.message,1)}
   refreshAll();
 }
@@ -118,7 +118,7 @@ function renderPainel(){
   /* altura por planta */
   $("plT").textContent=`Altura por planta em ${E}`;
   const sts=TR.map(t=>st(pe.filter(r=>r.tratamento===t).map(r=>r.altura_cm)));
-  const pts=[];const byF=by(pe,r=>r.fazenda_id+"|"+r.planta);for(const[k,a]of Object.entries(byF))pts.push({type:"line",showLine:false,label:"Planta",pointRadius:4,pointBackgroundColor:"#16231acc",pointBorderColor:"#fff",
+  const pts=[];const byF=by(pe,r=>r.fazenda_id+"|"+r.ponto+"|"+r.planta);for(const[k,a]of Object.entries(byF))pts.push({type:"line",showLine:false,label:"Planta",pointRadius:4,pointBackgroundColor:"#16231acc",pointBorderColor:"#fff",
     data:TR.map(t=>a.find(r=>r.tratamento===t)?.altura_cm??null)});
   mk("cPl",{type:"bar",plugins:[errPlug],data:{labels:TR,datasets:[{data:sts.map(s=>isNaN(s.m)?null:+s.m.toFixed(1)),sd:sts.map(s=>s.sd),backgroundColor:TR.map(t=>COL[t]+"cc"),borderRadius:6,order:2},...pts.map(p=>({...p,order:1}))]},
     options:{maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{filter:i=>i.datasetIndex===0,callbacks:{label:c=>`média ${fmt(c.raw)} ± ${fmt(sts[c.dataIndex].sd)} cm (n=${sts[c.dataIndex].n})`}}},
@@ -159,10 +159,11 @@ function renderPainel(){
     fz.map(id=>{const f=fazById(id),a=pe.filter(r=>r.fazenda_id===id),g=ge.filter(r=>r.fazenda_id===id),x=dlt(g,"Maxcel","cobertura_pct");
       return`<tr><td>${esc(prodById(f?.produtor_id)?.nome||"")} · ${esc(f?.nome||"")}</td>${TR.map(t=>`<td>${fmt(meanT(g,t,"cobertura_pct"))} · ${fmt(meanT(a,t,"altura_cm"))}</td>`).join("")}<td class="${cls(x)}">${pct(x)}</td></tr>`}).join("");
   /* plantas */
-  $("tab3H").textContent=`${E} · altura (cm) de cada planta`;
-  const pf=by(pe,r=>r.fazenda_id+"|"+r.tratamento);
-  $("tab3").innerHTML=`<tr><th>Fazenda</th><th class="tl">Tratamento</th>${Array.from({length:NPL},(_,i)=>`<th>P${i+1}</th>`).join("")}<th>Média</th><th>Estande médio</th></tr>`+
-    Object.entries(pf).sort().map(([k,a])=>{const f=fazById(a[0].fazenda_id);return`<tr><td>${esc(f?.nome||"")}</td><td class="tl"><span class="dot" style="background:${COL[a[0].tratamento]}"></span>${esc(a[0].tratamento)}</td>${Array.from({length:NPL},(_,i)=>`<td>${fmt(a.find(r=>r.planta===i+1)?.altura_cm)}</td>`).join("")}<td><b>${fmt(st(a.map(r=>r.altura_cm)).m)}</b></td><td>${fmt(st(a.map(r=>r.estande_pl_m)).m)}</td></tr>`}).join("");
+  $("tab3H").textContent=`${E} · ${NPT} pontos por tratamento · altura (cm) das 5 plantas e plantas contadas em cada metro (5 m)`;
+  const pf=by(pe,r=>r.fazenda_id+"|"+trOrd(r.tratamento)+"|"+r.ponto),M=Array.from({length:NPL},(_,i)=>i+1);
+  $("tab3").innerHTML=`<tr><th>Fazenda</th><th class="tl">Tratamento</th><th>Ponto</th>${M.map(i=>`<th>Alt. P${i}</th>`).join("")}<th>Altura média</th>${M.map(i=>`<th>${i}º m</th>`).join("")}<th>Estande (pl/m)</th></tr>`+
+    Object.entries(pf).sort((x,y)=>{const a=x[1][0],b=y[1][0];return(fazById(a.fazenda_id)?.nome||"").localeCompare(fazById(b.fazenda_id)?.nome||"")||trOrd(a.tratamento)-trOrd(b.tratamento)||a.ponto-b.ponto}).map(([k,a])=>{const f=fazById(a[0].fazenda_id);
+      return`<tr><td>${esc(f?.nome||"")}</td><td class="tl"><span class="dot" style="background:${COL[a[0].tratamento]}"></span>${esc(a[0].tratamento)}</td><td>${a[0].ponto}</td>${M.map(i=>`<td>${fmt(a.find(r=>r.planta===i)?.altura_cm)}</td>`).join("")}<td><b>${fmt(st(a.map(r=>r.altura_cm)).m)}</b></td>${M.map(i=>`<td>${fmt(a.find(r=>r.planta===i)?.estande_pl_m,0)}</td>`).join("")}<td><b>${fmt(st(a.map(r=>r.estande_pl_m)).m)}</b></td></tr>`}).join("");
   /* insights */
   const ins=[];
   const rk=TR.map(t=>[t,meanT(ge,t,"cobertura_pct")]).filter(x=>!isNaN(x[1])).sort((a,b)=>b[1]-a[1]);
@@ -279,13 +280,13 @@ $("lb").addEventListener("click",()=>{$("lb").hidden=true;$("lbImg").src=""});
 /* ====================== planilha base ====================== */
 $("dlForm").addEventListener("submit",e=>{e.preventDefault();const pid=$("dP").value,E=$("dE").value,D=$("dD").value;const p=prodById(pid);
   const fz=FAZ.filter(f=>f.produtor_id===pid);if(!fz.length)return toast("Cadastre ao menos uma fazenda para este produtor.",1);
-  const H=["Produtor","Fazenda","Tratamento","Estadio","Data","DAE","Planta","Altura_cm","Estande_pl_m","Observacoes"],rows=[H];
-  for(const f of fz)for(const t of TR)for(let k=1;k<=NPL;k++){const ex=PL.find(r=>r.fazenda_id===f.id&&r.tratamento===t&&r.estadio===E&&r.planta===k);
-    rows.push([p.nome,f.nome,t,E,D||"",daysBetween(f.data_emergencia,D)??"",k,ex?.altura_cm??"",ex?.estande_pl_m??"",""])}
-  const ws=XLSX.utils.aoa_to_sheet(rows);ws["!cols"]=[22,22,12,9,12,6,7,11,13,30].map(w=>({wch:w}));ws["!autofilter"]={ref:`A1:J${rows.length}`};
+  const H=["Produtor","Fazenda","Tratamento","Estadio","Data","DAE","Ponto","Medicao","Altura_cm","Plantas_no_metro","Observacoes"],rows=[H];
+  for(const f of fz)for(const t of TR)for(let pt=1;pt<=NPT;pt++)for(let k=1;k<=NPL;k++){const ex=PL.find(r=>r.fazenda_id===f.id&&r.tratamento===t&&r.estadio===E&&r.ponto===pt&&r.planta===k);
+    rows.push([p.nome,f.nome,t,E,D||"",daysBetween(f.data_emergencia,D)??"",pt,k,ex?.altura_cm??"",ex?.estande_pl_m??"",""])}
+  const ws=XLSX.utils.aoa_to_sheet(rows);ws["!cols"]=[22,22,12,9,12,6,7,9,11,16,30].map(w=>({wch:w}));ws["!autofilter"]={ref:`A1:K${rows.length}`};
   const ins=XLSX.utils.aoa_to_sheet([["Planilha base — Projeto Estruturação de Plantas (Grower)"],[""],["Produtor",p.nome],["Estádio",E],["Data",D||"(preencher na coluna Data)"],[""],
-    ["Como preencher"],["• Cada linha é uma planta. São 5 plantas por tratamento em cada fazenda."],["• Altura_cm: altura da planta, do solo ao ápice, em centímetros."],
-    ["• Estande_pl_m: plantas por metro de linha contadas no ponto daquela planta (5 pontos por tratamento)."],["• Não altere as colunas Produtor, Fazenda, Tratamento e Planta."],
+    ["Como preencher"],["• Cada tratamento tem 3 pontos amostrados. Em cada ponto há 5 medições (Medicao 1 a 5) = 15 linhas por tratamento."],["• Altura_cm: altura da planta n\u00ba 1 a 5 do ponto, do solo ao ápice, em centímetros."],
+    ["• Plantas_no_metro: número de plantas contadas no 1º, 2º, 3º, 4º e 5º metro de linha do ponto (5 metros por ponto)."],["• O estande (plantas/m) do ponto é a média dos 5 metros; o do tratamento é a média dos 3 pontos."],["• Não altere as colunas Produtor, Fazenda, Tratamento, Ponto e Medicao."],
     ["• DAE é calculado pela data de emergência cadastrada; pode ser preenchido à mão."],["• Linhas sem altura e sem estande são ignoradas no envio."],[""],["Fazendas"],["Fazenda","Município","UF","Espaçamento (cm)","Emergência"],
     ...fz.map(f=>[f.nome,f.municipio||"",f.uf||"",f.espacamento_cm??"",f.data_emergencia||""])]);ins["!cols"]=[{wch:30},{wch:28},{wch:6},{wch:16},{wch:12}];
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Avaliacao");XLSX.utils.book_append_sheet(wb,ins,"Instrucoes");
@@ -293,18 +294,19 @@ $("dlForm").addEventListener("submit",e=>{e.preventDefault();const pid=$("dP").v
 $("fx").addEventListener("change",async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;
   if(MODE==="demo")return toast("No modo de exemplo nada é salvo.",1);
   try{const wb=XLSX.read(await f.arrayBuffer(),{type:"array",cellDates:true});const sh=wb.Sheets["Avaliacao"]||wb.Sheets[wb.SheetNames[0]];
-    const raw=XLSX.utils.sheet_to_json(sh,{defval:"",raw:true});const REQ=["Produtor","Fazenda","Tratamento","Estadio","Planta"],bad=[],rows=[];
+    const raw=XLSX.utils.sheet_to_json(sh,{defval:"",raw:true});const REQ=["Produtor","Fazenda","Tratamento","Estadio","Ponto","Medicao"],bad=[],rows=[];
     raw.forEach((r0,i)=>{const r={};for(const[k,v]of Object.entries(r0))r[String(k).trim()]=v instanceof Date?isoDate(v):typeof v==="string"?v.trim():v;
-      r.Altura_cm=num(r.Altura_cm);r.Estande_pl_m=num(r.Estande_pl_m);if(r.Altura_cm==null&&r.Estande_pl_m==null)return;
-      const miss=REQ.filter(k=>r[k]===""||r[k]==null);if(miss.length)return bad.push(`linha ${i+2}: falta ${miss.join(", ")}`);
+      if(r.Medicao==null||r.Medicao==="")r.Medicao=r.Planta;if(r.Ponto==null||r.Ponto==="")r.Ponto=r.Medicao!=null&&r.Medicao!==""?1:"";if(r.Plantas_no_metro===undefined)r.Plantas_no_metro=r.Estande_pl_m;
+      r.Altura_cm=num(r.Altura_cm);r.Estande_pl_m=num(r.Plantas_no_metro);if(r.Altura_cm==null&&r.Estande_pl_m==null)return;
+      const miss=REQ.filter(k=>r[k]===""||r[k]==null);if(!miss.length&&(num(r.Ponto)<1||num(r.Ponto)>10||num(r.Medicao)<1||num(r.Medicao)>50))return bad.push(`linha ${i+2}: Ponto ou Medicao inválido`);if(miss.length)return bad.push(`linha ${i+2}: falta ${miss.join(", ")}`);
       if(r.Altura_cm!=null&&(r.Altura_cm<=0||r.Altura_cm>250))bad.push(`linha ${i+2}: altura ${r.Altura_cm} cm fora do esperado`);
       rows.push({Produtor:String(r.Produtor),Fazenda:String(r.Fazenda),Tratamento:String(r.Tratamento),Estadio:String(r.Estadio),Data:isoDate(r.Data),DAE:num(r.DAE),
-        Planta:num(r.Planta),Altura_cm:r.Altura_cm,Estande_pl_m:r.Estande_pl_m,Observacoes:r.Observacoes||""})});
+        Ponto:num(r.Ponto),Planta:num(r.Medicao),Altura_cm:r.Altura_cm,Estande_pl_m:r.Estande_pl_m,Observacoes:r.Observacoes||""})});
     if(bad.length)return $("sendRes").innerHTML=`<b style="color:#c0392b">Corrija antes de enviar:</b><br>${bad.slice(0,8).map(esc).join("<br>")}`;
     if(!rows.length)return toast("Nenhuma linha com altura ou estande preenchidos.",1);
-    $("sendRes").textContent=`Enviando ${rows.length} plantas…`;let n=0;
+    $("sendRes").textContent=`Enviando ${rows.length} medições…`;let n=0;
     for(let i=0;i<rows.length;i+=400){const{data,error}=await SB.rpc("importar_plantas",{linhas:rows.slice(i,i+400)});if(error)throw error;n+=data}
-    $("sendRes").textContent=`Pronto: ${n} plantas gravadas.`;toast(`${n} plantas gravadas.`);await loadDB();
+    $("sendRes").textContent=`Pronto: ${n} medições gravadas.`;toast(`${n} medições gravadas.`);await loadDB();
   }catch(err){$("sendRes").innerHTML=`<b style="color:#c0392b">Envio interrompido:</b> ${esc(err.message)}`}});
 
 /* ====================== edição on-line ====================== */
@@ -313,15 +315,15 @@ function fillEditSel(){setSel($("eP"),opts(prodOpts(),"Todos"));setSel($("eF"),o
   const ss=ordSt([...PL.map(r=>r.estadio),...GC.map(r=>r.estadio)]);setSel($("eE"),opts(ORD.filter(e=>ss.includes(e)).concat(ORD.filter(e=>!ss.includes(e))),"Todos"));
   if(!$("eE").dataset.init&&ss.length){$("eE").value=$("sE").value||ss.at(-1);$("eE").dataset.init=1}}
 const edRows=()=>{const P=$("eP").value,F=$("eF").value,E=$("eE").value;
-  return PL.filter(r=>(!P||r.produtor_id===P)&&(!F||r.fazenda_id===F)&&(!E||r.estadio===E)).sort((a,b)=>(a.produtor+a.fazenda).localeCompare(b.produtor+b.fazenda)||ORD.indexOf(a.estadio)-ORD.indexOf(b.estadio)||trOrd(a.tratamento)-trOrd(b.tratamento)||a.planta-b.planta)};
+  return PL.filter(r=>(!P||r.produtor_id===P)&&(!F||r.fazenda_id===F)&&(!E||r.estadio===E)).sort((a,b)=>(a.produtor+a.fazenda).localeCompare(b.produtor+b.fazenda)||ORD.indexOf(a.estadio)-ORD.indexOf(b.estadio)||trOrd(a.tratamento)-trOrd(b.tratamento)||a.ponto-b.ponto||a.planta-b.planta)};
 function renderEditar(){
   fillEditSel();const adm=PAPEL==="admin",rows=edRows();
-  $("edPl").innerHTML=`<tr><th>Fazenda</th><th class="tl">Estádio</th><th class="tl">Tratamento</th><th>Planta</th><th>Altura (cm)</th><th>Estande (pl/m)</th><th class="tl">Data</th><th>DAE</th><th class="tl">Observações</th>${adm?"<th></th>":""}</tr>`+
-    (rows.length?rows.map(r=>`<tr data-id="${esc(r.id)}"><td>${esc(r.fazenda)}</td><td class="tl">${esc(r.estadio)}</td><td class="tl"><span class="dot" style="background:${COL[r.tratamento]}"></span>${esc(r.tratamento)}</td><td>${r.planta}</td>
+  $("edPl").innerHTML=`<tr><th>Fazenda</th><th class="tl">Estádio</th><th class="tl">Tratamento</th><th>Ponto</th><th>Medição</th><th>Altura (cm)</th><th>Plantas no metro</th><th class="tl">Data</th><th>DAE</th><th class="tl">Observações</th>${adm?"<th></th>":""}</tr>`+
+    (rows.length?rows.map(r=>`<tr data-id="${esc(r.id)}"><td>${esc(r.fazenda)}</td><td class="tl">${esc(r.estadio)}</td><td class="tl"><span class="dot" style="background:${COL[r.tratamento]}"></span>${esc(r.tratamento)}</td><td>${r.ponto}</td><td>${r.planta}</td>
       <td><input type="number" step="0.1" min="0" max="250" data-k="altura_cm" value="${r.altura_cm??""}"></td><td><input type="number" step="0.1" min="0" max="99" data-k="estande_pl_m" value="${r.estande_pl_m??""}"></td>
       <td class="tl"><input type="date" data-k="data" value="${esc(r.data||"")}"></td><td>${r.dae??"–"}</td><td class="tl"><input type="text" data-k="observacoes" value="${esc(r.observacoes||"")}"></td>
-      ${adm?`<td><button class="mini" type="button" data-delpl="${esc(r.id)}">Excluir</button></td>`:""}</tr>`).join(""):`<tr><td colspan="10">Nenhuma planta neste filtro. Escolha fazenda e estádio e use “Criar linhas vazias”, ou envie a planilha.</td></tr>`);
-  $("edInfo").textContent=`${rows.length} planta(s)`;$("edSave").disabled=true;
+      ${adm?`<td><button class="mini" type="button" data-delpl="${esc(r.id)}">Excluir</button></td>`:""}</tr>`).join(""):`<tr><td colspan="11">Nenhuma medição neste filtro. Escolha fazenda e estádio e use “Criar linhas vazias”, ou envie a planilha.</td></tr>`);
+  $("edInfo").textContent=`${rows.length} medição(ões)`;$("edSave").disabled=true;
   const P=$("eP").value,F=$("eF").value,E=$("eE").value,g=GC.filter(r=>(!P||r.produtor_id===P)&&(!F||r.fazenda_id===F)&&(!E||r.estadio===E)).sort((a,b)=>a.fazenda.localeCompare(b.fazenda)||ORD.indexOf(a.estadio)-ORD.indexOf(b.estadio)||trOrd(a.tratamento)-trOrd(b.tratamento)||(a.amostra||1)-(b.amostra||1));
   const gg=GER.filter(r=>(!F||r.fazenda_id===F)&&(!P||fazById(r.fazenda_id)?.produtor_id===P)&&(!E||r.estadio===E));
   $("edGc").innerHTML=`<tr><th>Foto</th><th class="tl">Fazenda</th><th class="tl">Estádio</th><th class="tl">Tratamento</th><th>Amostra</th><th>Grau de cover</th><th class="tl">Data</th><th></th></tr>`+
@@ -343,11 +345,11 @@ $("edSave").onclick=async()=>{if(MODE==="demo")return toast("No modo de exemplo 
   }catch(err){toast(`Salvei ${ok} linha(s); erro: ${err.message}`,1);$("edSave").disabled=false}};
 $("edGen").onclick=async()=>{if(MODE==="demo")return toast("No modo de exemplo nada é salvo.",1);
   const F=$("eF").value,E=$("eE").value;if(!F||!E)return toast("Escolha uma fazenda e um estádio.",1);
-  const rows=[];for(const[i,t]of TR.entries())for(let k=1;k<=NPL;k++)rows.push({fazenda_id:F,tratamento_id:i+1,estadio:E,planta:k});
-  const{error}=await SB.from("plantas").upsert(rows,{onConflict:"fazenda_id,tratamento_id,estadio,planta",ignoreDuplicates:true});if(error)return toast(error.message,1);
+  const rows=[];for(const[i,t]of TR.entries())for(let pt=1;pt<=NPT;pt++)for(let k=1;k<=NPL;k++)rows.push({fazenda_id:F,tratamento_id:i+1,estadio:E,ponto:pt,planta:k});
+  const{error}=await SB.from("plantas").upsert(rows,{onConflict:"fazenda_id,tratamento_id,estadio,ponto,planta",ignoreDuplicates:true});if(error)return toast(error.message,1);
   toast("Linhas criadas. Preencha e salve.");await loadDB()};
 $("edPl").addEventListener("click",async e=>{const b=e.target.closest("[data-delpl]");if(!b)return;if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Confirmar";return}
-  if(MODE==="demo")return toast("No modo de exemplo nada é salvo.",1);const{error}=await SB.from("plantas").delete().eq("id",b.dataset.delpl);if(error)return toast(error.message,1);toast("Planta excluída.");await loadDB()});
+  if(MODE==="demo")return toast("No modo de exemplo nada é salvo.",1);const{error}=await SB.from("plantas").delete().eq("id",b.dataset.delpl);if(error)return toast(error.message,1);toast("Medição excluída.");await loadDB()});
 $("edGc").addEventListener("change",async e=>{const tr=e.target.closest("tr[data-gid]");if(!tr||e.target.dataset.gk!=="data")return;if(MODE==="demo")return toast("No modo de exemplo nada é salvo.",1);
   const geral=!!tr.dataset.geral,r=(geral?GER:GC).find(x=>String(x.id)===tr.dataset.gid),dt=e.target.value||null;
   const{error}=await SB.from(geral?"fotos_gerais":"fotos_cobertura").update({data:dt,dae:daysBetween(fazById(r.fazenda_id)?.data_emergencia,dt),atualizado_em:new Date().toISOString()}).eq("id",r.id);

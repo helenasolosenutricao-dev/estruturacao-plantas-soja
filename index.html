@@ -142,7 +142,7 @@
 <section id="tab-planilhas" class="tab" hidden><main class="band"><div class="wrap">
   <div class="grid2" style="align-items:start">
     <div class="card"><h2>1. Baixar planilha base</h2>
-      <p class="h">Gera a planilha do produtor com todas as fazendas e tratamentos, 5 plantas por tratamento. Preencha altura (cm) e estande (plantas por metro de linha) de cada planta/ponto.</p>
+      <p class="h">Gera a planilha do produtor com todas as fazendas e tratamentos: 3 pontos por tratamento e 5 medições por ponto. Em cada linha, preencha a altura de uma planta (cm) e as plantas contadas em um dos 5 metros de linha.</p>
       <form id="dlForm" class="formgrid">
         <label class="f">Produtor<select id="dP" required></select></label>
         <label class="f">Estádio<select id="dE" required></select></label>
@@ -151,7 +151,7 @@
       </form>
     </div>
     <div class="card" id="sendCard"><h2>2. Enviar planilha preenchida</h2>
-      <p class="h">Envie a planilha com os dados da época. Reenviar a mesma fazenda, tratamento, estádio e planta substitui os valores anteriores.</p>
+      <p class="h">Envie a planilha com os dados da época. Reenviar a mesma fazenda, tratamento, estádio, ponto e medição substitui os valores anteriores.</p>
       <label class="btn gold" style="width:max-content">Escolher planilha<input type="file" id="fx" accept=".xlsx,.xls"></label>
       <div id="sendRes" class="h" style="margin-top:12px"></div>
     </div>
@@ -172,7 +172,7 @@
     <div class="btns" style="margin:0 0 12px">
       <button class="btn gold" type="button" id="edSave" disabled>Salvar alterações</button>
       <button class="mini" type="button" id="edUndo">Desfazer alterações</button>
-      <button class="mini" type="button" id="edGen">Criar linhas vazias (5 plantas × tratamentos)</button>
+      <button class="mini" type="button" id="edGen">Criar linhas vazias (3 pontos × 5 medições × tratamentos)</button>
       <span class="h" id="edInfo" style="align-self:center"></span>
     </div>
     <div class="scroll"><table id="edPl" class="edit"></table></div>
@@ -238,6 +238,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>
