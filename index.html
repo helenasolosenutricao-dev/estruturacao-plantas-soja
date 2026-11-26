@@ -6,7 +6,7 @@
 <title>Estruturação de Plantas · Soja</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
 <header class="band"><div class="wrap">
@@ -39,6 +39,7 @@
   <button type="button" data-tab="painel" class="on">Painel</button>
   <button type="button" data-tab="fotos">Cobertura (fotos)</button>
   <button type="button" data-tab="planilhas">Planilhas</button>
+  <button type="button" data-tab="editar" class="editOnly">Editar dados</button>
   <button type="button" data-tab="cadastro">Produtores e fazendas</button>
   <button type="button" data-tab="equipe" id="tabEquipe" hidden>Equipe</button>
 </div></nav>
@@ -59,9 +60,18 @@
       <div class="grid2 sect">
         <div class="card"><h2 id="plT">Altura por planta</h2><p class="h">Barras = média do tratamento ± desvio padrão · pontos = cada planta avaliada</p>
           <div class="legend" id="leg1"></div><div class="fig"><canvas id="cPl"></canvas></div></div>
-        <div class="card"><h2>Cobertura do solo</h2><p class="h" id="gcH">Falso NDVI das fotos em grupo, por estádio</p>
-          <div class="fig"><canvas id="cGC"></canvas></div></div>
+        <div class="card"><h2 id="gcbT">Grau de cover</h2><p class="h">Barras = média das amostras (falso NDVI) ± desvio padrão · pontos = cada amostra</p>
+          <div class="fig"><canvas id="cGCb"></canvas></div></div>
       </div>
+      <div class="card sect"><h2 id="locT">Comparação por local</h2>
+        <p class="h">Média ± desvio padrão de cada tratamento em cada fazenda no estádio selecionado. A última coluna é a média de todos os locais.</p>
+        <div class="formgrid" style="max-width:520px"><label class="f">Atributo<select id="locA">
+          <option value="cobertura_pct">Grau de cover (% de fechamento)</option><option value="altura_cm">Altura de plantas (cm)</option>
+          <option value="estande_pl_m">Estande (plantas/m)</option><option value="pop_ha">População (mil plantas/ha)</option></select></label></div>
+        <div class="legend" id="leg2"></div><div class="fig" style="min-height:380px"><canvas id="cLoc"></canvas></div>
+        <div class="scroll" style="margin-top:12px"><table id="tabLoc"></table></div></div>
+      <div class="card sect"><h2>Fechamento de rua ao longo do ciclo</h2><p class="h" id="gcH">Grau de cover médio por tratamento em cada estádio</p>
+        <div class="fig"><canvas id="cGC"></canvas></div></div>
 
       <div class="grid2 sect">
         <div class="card"><h2>Crescimento médio das plantas</h2><p class="h">Altura média por tratamento ao longo dos dias após emergência (DAE)</p>
@@ -85,24 +95,24 @@
 <!-- ===================== FOTOS ===================== -->
 <section id="tab-fotos" class="tab" hidden><main class="band"><div class="wrap">
   <div class="card" id="upCard">
-    <h2>Enviar foto em grupo</h2>
-    <p class="h">Uma foto por tratamento, fazenda e estádio. A foto é analisada aqui mesmo: o índice de verde (falso NDVI) separa planta de solo e calcula quanto a soja está fechando a rua.</p>
+    <h2>Enviar fotos em grupo · até 5 amostras</h2>
+    <p class="h">Selecione as fotos das amostras 1 a 5 de um tratamento de uma vez. Cada foto é analisada aqui mesmo pelo falso NDVI (índice de verde), e o grau de cover do tratamento é a média das amostras.</p>
     <div class="formgrid">
       <label class="f">Produtor<select id="uP"></select></label>
       <label class="f">Fazenda<select id="uF"></select></label>
-      <label class="f">Tratamento<select id="uT"></select></label>
+      <label class="f">Tipo de foto<select id="uK"><option value="am">Amostras do tratamento (1 a 5)</option><option value="geral">Foto geral (todas as parcelas)</option></select></label>
+      <label class="f" id="uTw">Tratamento<select id="uT"></select></label>
       <label class="f">Estádio<select id="uE"></select></label>
-      <label class="f">Data da foto<input type="date" id="uD"></label>
-      <label class="f">Foto<input type="file" id="uFile" accept="image/*"></label>
+      <label class="f">Data das fotos<input type="date" id="uD"></label>
+      <label class="f"><span id="uFl">Fotos (1 a 5)</span><input type="file" id="uFile" accept="image/*" multiple></label>
     </div>
     <div id="anal" hidden>
-      <div class="pair">
-        <figure><div class="frame"><canvas id="cvO"></canvas></div><figcaption>Foto original</figcaption></figure>
-        <figure><div class="frame"><canvas id="cvN"></canvas></div><figcaption>Falso NDVI <span class="ramp"></span></figcaption></figure>
-      </div>
-      <div class="res"><div><span class="big" id="covOut">–</span><span>cobertura verde</span></div>
+      <div class="res">
+        <div><span class="big" id="covOut">–</span><span>grau de cover médio</span><small id="covSd"></small></div>
         <label class="f grow">Sensibilidade do verde (limiar ExG <b id="limOut">20</b>)<input type="range" id="lim" min="0" max="60" value="20"></label>
-        <button class="btn gold" type="button" id="saveFoto">Salvar foto e cobertura</button></div>
+        <button class="btn gold" type="button" id="saveFoto">Salvar amostras</button>
+      </div>
+      <div class="samples" id="samp"></div>
     </div>
   </div>
 
@@ -114,14 +124,19 @@
       <label class="f">Estádio<select id="cE"></select></label>
       <label class="f">Mostrar<select id="cMode"><option value="foto">Foto original</option><option value="mapa">Falso NDVI</option></select></label>
     </div>
-    <div class="photos" id="ph"></div>
-    <h3 style="margin:22px 0 8px">Deslize para comparar</h3>
-    <div class="formgrid"><label class="f">Esquerda<select id="pA"></select></label><label class="f">Direita<select id="pB"></select></label></div>
-    <div class="cmp" id="cmp"><div class="ly" id="lyB"></div><div class="ly top" id="lyA"></div><div class="hand" id="hand"></div>
+    <div id="geral" class="geral" hidden></div>
+    <div class="trsel" id="trSel"></div>
+    <div class="bgwrap"><div class="bg" id="bigGrid"></div></div>
+    <h3 style="margin:26px 0 8px">Deslize para comparar</h3>
+    <div class="formgrid"><label class="f">Esquerda<select id="pA"></select></label><label class="f">Direita<select id="pB"></select></label>
+      <label class="f">Amostra<select id="pS"><option value="1">Amostra 1</option><option value="2">Amostra 2</option><option value="3">Amostra 3</option><option value="4">Amostra 4</option><option value="5">Amostra 5</option></select></label>
+      <label class="f">Mostrar<select id="pMode"><option value="foto">Foto original</option><option value="mapa">Falso NDVI</option><option value="mix">Esquerda foto · direita NDVI</option></select></label></div>
+    <div class="cmp big" id="cmp"><div class="ly" id="lyB"></div><div class="ly top" id="lyA"></div><div class="hand" id="hand"></div>
       <span class="tag" id="tgA" style="left:10px"></span><span class="tag" id="tgB" style="right:10px"></span></div>
     <input type="range" id="rg" min="0" max="100" value="50" aria-label="Posição da comparação">
   </div>
 </div></main></section>
+<div class="lb" id="lb" hidden><figure><img id="lbImg" alt=""><figcaption id="lbCap"></figcaption></figure></div>
 
 <!-- ===================== PLANILHAS ===================== -->
 <section id="tab-planilhas" class="tab" hidden><main class="band"><div class="wrap">
@@ -142,6 +157,33 @@
     </div>
   </div>
 </div></main></section>
+
+<!-- ===================== EDITAR ===================== -->
+<section id="tab-editar" class="tab" hidden>
+  <div class="filters"><div class="wrap">
+    <label class="f">Produtor<select id="eP"></select></label>
+    <label class="f">Fazenda<select id="eF"></select></label>
+    <label class="f">Estádio<select id="eE"></select></label>
+  </div></div>
+  <main class="band"><div class="wrap">
+  <div class="card">
+    <h2>Altura e estande</h2>
+    <p class="h">Corrija os valores direto na tabela e clique em <b>Salvar alterações</b>. Linhas alteradas ficam destacadas. O DAE é recalculado pela data e pela emergência da fazenda.</p>
+    <div class="btns" style="margin:0 0 12px">
+      <button class="btn gold" type="button" id="edSave" disabled>Salvar alterações</button>
+      <button class="mini" type="button" id="edUndo">Desfazer alterações</button>
+      <button class="mini" type="button" id="edGen">Criar linhas vazias (5 plantas × tratamentos)</button>
+      <span class="h" id="edInfo" style="align-self:center"></span>
+    </div>
+    <div class="scroll"><table id="edPl" class="edit"></table></div>
+  </div>
+  <div class="card sect">
+    <h2>Fotos de cobertura</h2>
+    <p class="h">Para trocar uma foto, envie de novo na aba <b>Cobertura (fotos)</b> com a mesma amostra. Aqui você pode corrigir a data ou excluir uma amostra (só administradora).</p>
+    <div class="scroll"><table id="edGc" class="edit"></table></div>
+  </div>
+  </div></main>
+</section>
 
 <!-- ===================== CADASTRO ===================== -->
 <section id="tab-cadastro" class="tab" hidden><main class="band"><div class="wrap">
@@ -196,6 +238,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="app.js?v=3"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>
