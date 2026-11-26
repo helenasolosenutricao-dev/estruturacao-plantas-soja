@@ -24,11 +24,20 @@
 
 <section class="band" id="gate" hidden><div class="wrap">
   <div class="card login">
-    <h2>Entrar</h2>
-    <p class="h" id="gateMsg">Digite seu e-mail da equipe. Você recebe um link de acesso — não precisa de senha.</p>
+    <h2 id="gateTitle">Entrar</h2>
+    <p class="h" id="gateMsg">Entre com seu e-mail e senha da equipe.</p>
     <form id="loginForm">
       <label class="f">E-mail<input type="email" id="email" required autocomplete="email" placeholder="nome@empresa.com.br"></label>
-      <button class="btn gold" type="submit" id="sendLink">Enviar link de acesso</button>
+      <label class="f">Senha<input type="password" id="pass" required minlength="6" autocomplete="current-password" placeholder="mínimo 6 caracteres"></label>
+      <label class="f" id="pass2Wrap" hidden>Confirmar senha<input type="password" id="pass2" minlength="6" autocomplete="new-password"></label>
+      <button class="btn gold" type="submit" id="sendLink">Entrar</button>
+      <div class="links"><button class="lnk" type="button" id="toggleMode">Primeiro acesso? Criar senha</button>
+        <button class="lnk" type="button" id="forgot">Esqueci minha senha</button></div>
+    </form>
+    <form id="newPassForm" hidden>
+      <label class="f">Nova senha<input type="password" id="np1" required minlength="6" autocomplete="new-password"></label>
+      <label class="f">Confirmar nova senha<input type="password" id="np2" required minlength="6" autocomplete="new-password"></label>
+      <button class="btn gold" type="submit">Salvar nova senha</button>
     </form>
     <button class="btn ghost" id="demoBtn" type="button">Ver com dados de exemplo</button>
   </div>

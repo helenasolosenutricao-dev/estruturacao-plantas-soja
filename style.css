@@ -70,3 +70,7 @@ input[type=email],input[type=text]{min-height:44px;font:16px Barlow,system-ui,sa
 .toast.on{opacity:1}.toast.err{background:#8e2b20}
 .mini{min-height:36px;padding:0 10px;font-size:14px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
 [hidden]{display:none!important}
+input[type=password]{min-height:44px;font:16px Barlow,system-ui,sans-serif;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.links{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px}
+.lnk{background:none;border:0;padding:8px 0;min-height:44px;color:var(--mx);font:600 15px Barlow,system-ui,sans-serif;cursor:pointer;text-decoration:underline}
+#newPassForm{display:grid;gap:12px;margin-top:8px}#newPassForm[hidden]{display:none}

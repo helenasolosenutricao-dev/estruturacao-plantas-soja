@@ -31,7 +31,7 @@ function demo(){
     }}
   return out;
 }
-let DATA=[],PHOTOS={},SB=null,PAPEL=null,MODE="";
+let DATA=[],PHOTOS={},SB=null,PAPEL=null,MODE="",RECOVERY=false;
 
 /* ---------- estatística ---------- */
 const st=a=>{const v=a.filter(x=>x!=null&&!isNaN(x));const n=v.length;if(!n)return{n:0,m:NaN,sd:NaN,cv:NaN};
@@ -188,7 +188,7 @@ async function loadDB(){
 }
 
 async function boot(){
-  if(MODE==="demo")return;
+  if(MODE==="demo"||RECOVERY)return;
   if(!SB){$("gateMsg").textContent="O banco ainda não foi configurado (config.js). Você pode ver a prévia com dados de exemplo.";$("loginForm").hidden=true;show(true);return}
   const{data:{session}}=await SB.auth.getSession();
   if(!session){show(true);$("who").textContent="";return}
@@ -202,16 +202,40 @@ async function boot(){
   await loadDB();
 }
 
-/* ---------- login ---------- */
-$("loginForm").addEventListener("submit",async e=>{e.preventDefault();if(!SB)return;const email=$("email").value.trim();
-  $("sendLink").disabled=true;const{error}=await SB.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
-  $("sendLink").disabled=false;
-  if(error)toast("Não foi possível enviar: "+error.message,1);else $("gateMsg").innerHTML=`Link enviado para <b>${esc(email)}</b>. Abra o e-mail neste mesmo navegador e clique no link.`});
+/* ---------- login (e-mail e senha) ---------- */
+let SIGNUP=false;const here=location.origin+location.pathname;
+const ptErr=m=>/Invalid login/i.test(m)?"E-mail ou senha incorretos.":/not confirmed/i.test(m)?"Confirme seu e-mail pelo link que enviamos antes de entrar.":
+  /already registered/i.test(m)?"Este e-mail já tem senha. Use “Entrar” ou “Esqueci minha senha”.":/at least 6/i.test(m)?"A senha precisa ter pelo menos 6 caracteres.":
+  /rate limit/i.test(m)?"Muitas tentativas em pouco tempo. Aguarde alguns minutos.":m;
+const setMode=su=>{SIGNUP=su;$("gateTitle").textContent=su?"Criar senha":"Entrar";$("pass2Wrap").hidden=!su;$("pass2").required=su;
+  $("pass").autocomplete=su?"new-password":"current-password";$("sendLink").textContent=su?"Criar senha":"Entrar";
+  $("toggleMode").textContent=su?"Já tenho senha — entrar":"Primeiro acesso? Criar senha";
+  $("gateMsg").textContent=su?"Use o e-mail cadastrado pela coordenação e escolha uma senha (mínimo 6 caracteres).":"Entre com seu e-mail e senha da equipe."};
+$("toggleMode").onclick=()=>setMode(!SIGNUP);
+$("loginForm").addEventListener("submit",async e=>{e.preventDefault();if(!SB)return;
+  const email=$("email").value.trim().toLowerCase(),password=$("pass").value;
+  if(SIGNUP&&password!==$("pass2").value)return toast("As senhas não conferem.",1);
+  $("sendLink").disabled=true;
+  if(SIGNUP){const{data,error}=await SB.auth.signUp({email,password,options:{emailRedirectTo:here}});$("sendLink").disabled=false;
+    if(error)return toast(ptErr(error.message),1);
+    if(data.session)return;
+    setMode(false);$("gateMsg").innerHTML=`Senha criada para <b>${esc(email)}</b>. Enviamos um e-mail de confirmação — clique no link e depois entre aqui com sua senha.`;return}
+  const{error}=await SB.auth.signInWithPassword({email,password});$("sendLink").disabled=false;
+  if(error)return toast(ptErr(error.message),1)});
+$("forgot").onclick=async()=>{const email=$("email").value.trim().toLowerCase();if(!email)return toast("Digite seu e-mail acima e clique de novo em “Esqueci minha senha”.",1);
+  const{error}=await SB.auth.resetPasswordForEmail(email,{redirectTo:here});
+  if(error)return toast(ptErr(error.message),1);$("gateMsg").innerHTML=`Se <b>${esc(email)}</b> tiver conta, chegará um e-mail com o link para criar uma nova senha.`};
+$("newPassForm").addEventListener("submit",async e=>{e.preventDefault();
+  if($("np1").value!==$("np2").value)return toast("As senhas não conferem.",1);
+  const{error}=await SB.auth.updateUser({password:$("np1").value});if(error)return toast(ptErr(error.message),1);
+  RECOVERY=false;toast("Senha atualizada.");$("newPassForm").hidden=true;$("loginForm").hidden=false;history.replaceState(null,"",here);boot()});
 $("demoBtn").onclick=()=>{MODE="demo";DATA=demo();PHOTOS={};show(false);$("bxWrap").hidden=true;$("bpWrap").hidden=true;$("reload").hidden=true;
   $("logout").textContent="Voltar ao login";$("srcNote").textContent="Dados fictícios de demonstração — nada aqui vem do banco.";initFilters();render()};
 $("logout").onclick=async()=>{if(MODE!=="demo"&&SB)await SB.auth.signOut();location.reload()};
 $("reload").onclick=()=>loadDB();
-SB?.auth.onAuthStateChange(ev=>{if(ev==="SIGNED_IN"&&$("app").hidden&&MODE!=="demo")boot()});
+SB?.auth.onAuthStateChange(ev=>{if(ev==="PASSWORD_RECOVERY"){RECOVERY=true;show(true);$("loginForm").hidden=true;$("newPassForm").hidden=false;
+    $("gateTitle").textContent="Nova senha";$("gateMsg").textContent="Escolha sua nova senha.";return}
+  if(ev==="SIGNED_IN"&&!RECOVERY&&$("app").hidden&&MODE!=="demo")setTimeout(boot,0)});
 
 /* ---------- envio de planilha ---------- */
 const REQ=["ID_Avaliacao","Produtor","Fazenda","Talhao","Tratamento","Estadio"];
