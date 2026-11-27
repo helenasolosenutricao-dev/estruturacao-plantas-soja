@@ -1,6 +1,6 @@
 # Estruturação de Plantas · Soja — Dashboard
 
-Dashboard da Grower para o projeto de estruturação de plantas de soja (tratamentos **Maxcel**, **Impulse**, **Stay Up** e **Controle**) em áreas de produtores.
+Dashboard da Grower para o projeto de estruturação de plantas de soja (tratamentos **Maxcel**, **Stay Up** e **Controle**) em áreas de produtores.
 
 - **Front-end:** site estático (HTML + JS) publicado no GitHub Pages.
 - **Banco:** Supabase (Postgres + Storage para fotos + login por link no e-mail).

@@ -1,6 +1,8 @@
 {
 /* ====================== constantes e utilidades ====================== */
-const TR=["Maxcel","Impulse","Stay Up","Controle"];
+const TR=["Maxcel","Stay Up","Controle"];
+/* ids fixos da tabela tratamentos (Impulse = 2 foi retirado do experimento) */
+const TRID={"Maxcel":1,"Impulse":2,"Stay Up":3,"Controle":4},TRNOME=Object.fromEntries(Object.entries(TRID).map(([k,v])=>[v,k]));
 const COL={"Maxcel":"#1e8a42","Impulse":"#2f6db5","Stay Up":"#c7861b","Controle":"#8c918a"};
 const ORD=["VE","VC","V1","V2","V3","V4","V5","V6","V7","V8","V9","V10","R1","R2","R3","R4","R5","R6","R7","R8"];
 const NPL=5,NPT=3,NFT=3;
@@ -57,7 +59,8 @@ async function loadDB(){
     [PROD,FAZ,PL,GC,GER,PF]=await Promise.all([SB.from("produtores").select("*").order("nome").then(r=>r.data||[]),
       SB.from("fazendas").select("*").order("nome").then(r=>r.data||[]),fetchAll("v_plantas"),fetchAll("v_cobertura"),
       SB.from("fotos_gerais").select("*").then(r=>r.data||[]),SB.from("fotos_plantas").select("*").then(r=>r.data||[])]);
-    PF.forEach(r=>{const f=fazById(r.fazenda_id);r.tratamento=TR[r.tratamento_id-1];r.fazenda=f?.nome||"";r.produtor_id=f?.produtor_id});
+    PF.forEach(r=>{const f=fazById(r.fazenda_id);r.tratamento=TRNOME[r.tratamento_id];r.fazenda=f?.nome||"";r.produtor_id=f?.produtor_id});
+    {const ok=r=>TR.includes(r.tratamento);PL=PL.filter(ok);GC=GC.filter(ok);PF=PF.filter(ok)}
     PL.forEach(r=>{r.ponto=num(r.ponto)??1;r.altura_cm=num(r.altura_cm);r.estande_pl_m=num(r.estande_pl_m);r.espacamento_cm=num(r.espacamento_cm);r.dae=num(r.dae)});
     GC.forEach(r=>{r.cobertura_pct=num(r.cobertura_pct);r.dae=num(r.dae)});
     URL_={};const paths=[...GC,...GER,...PF].flatMap(g=>[g.foto_path,g.mapa_path]).filter(Boolean);
@@ -229,7 +232,7 @@ $("saveFoto").addEventListener("click",async()=>{
   if(isPlantas()){const f=fazById(fid),nums=SAMP.map(s=>s.sel.value+"-"+s.fsel.value);if(new Set(nums).size!==nums.length)return toast("Duas fotos estão com o mesmo ponto e número de foto.",1);$("saveFoto").disabled=true;
     try{for(const s of SAMP){const a=+s.sel.value,fo=+s.fsel.value,p=`cobertura/${fid}/${slug(e)}/${slug(t)}-p${a}-f${fo}-plantas.jpg`;
         const jpg=await new Promise(r=>s.co.toBlob(r,"image/jpeg",0.9));const{error:e1}=await SB.storage.from("fotos").upload(p,jpg,{upsert:true,contentType:"image/jpeg"});if(e1)throw e1;
-        const{error}=await SB.from("fotos_plantas").upsert({fazenda_id:fid,tratamento_id:TR.indexOf(t)+1,estadio:e,ponto:a,foto:fo,arquivo:s.file.name,data:dt,dae:daysBetween(f?.data_emergencia,dt),foto_path:p,atualizado_em:new Date().toISOString()},{onConflict:"fazenda_id,tratamento_id,estadio,ponto,foto"});if(error)throw error}
+        const{error}=await SB.from("fotos_plantas").upsert({fazenda_id:fid,tratamento_id:TRID[t],estadio:e,ponto:a,foto:fo,arquivo:s.file.name,data:dt,dae:daysBetween(f?.data_emergencia,dt),foto_path:p,atualizado_em:new Date().toISOString()},{onConflict:"fazenda_id,tratamento_id,estadio,ponto,foto"});if(error)throw error}
       toast(`Plantas inteiras salvas · ${t} · ${e} · ${SAMP.length} foto(s).`);$("uFile").value="";$("anal").hidden=true;SAMP=[];$("samp").innerHTML="";
       const pid=$("uP").value;await loadDB();$("cP").value=pid;setSel($("cF"),opts(fazOpts(pid)));$("cF").value=fid;fillSelects();$("cE").value=e;renderFotos();
     }catch(err){toast("Não foi possível salvar: "+err.message,1)}finally{$("saveFoto").disabled=false}return}
@@ -242,7 +245,7 @@ $("saveFoto").addEventListener("click",async()=>{
       const pid=$("uP").value;await loadDB();$("cP").value=pid;setSel($("cF"),opts(fazOpts(pid)));$("cF").value=fid;fillSelects();$("cE").value=e;renderFotos();
     }catch(err){toast("Não foi possível salvar: "+err.message,1)}finally{$("saveFoto").disabled=false}return}
   const nums=SAMP.map(s=>s.sel.value+"-"+s.fsel.value);if(new Set(nums).size!==nums.length)return toast("Duas fotos estão com o mesmo ponto e número de foto.",1);
-  const f=fazById(fid),trId=TR.indexOf(t)+1;$("saveFoto").disabled=true;
+  const f=fazById(fid),trId=TRID[t];$("saveFoto").disabled=true;
   try{for(const s of SAMP){const a=+s.sel.value,fo=+s.fsel.value,base=`cobertura/${fid}/${slug(e)}/${slug(t)}-p${a}-f${fo}`;
       const jpg=await new Promise(r=>s.co.toBlob(r,"image/jpeg",0.88)),png=await new Promise(r=>s.cn.toBlob(r,"image/png"));
       for(const[p,b,ct]of[[base+".jpg",jpg,"image/jpeg"],[base+"-ndvi.png",png,"image/png"]]){const{error}=await SB.storage.from("fotos").upload(p,b,{upsert:true,contentType:ct});if(error)throw error}
@@ -331,7 +334,7 @@ $("fx").addEventListener("change",async e=>{const f=e.target.files[0];e.target.v
     raw.forEach((r0,i)=>{const r={};for(const[k,v]of Object.entries(r0))r[String(k).trim()]=v instanceof Date?isoDate(v):typeof v==="string"?v.trim():v;
       if(r.Medicao==null||r.Medicao==="")r.Medicao=r.Planta;if(r.Ponto==null||r.Ponto==="")r.Ponto=r.Medicao!=null&&r.Medicao!==""?1:"";if(r.Plantas_no_metro===undefined)r.Plantas_no_metro=r.Estande_pl_m;
       r.Altura_cm=num(r.Altura_cm);r.Estande_pl_m=num(r.Plantas_no_metro);if(r.Altura_cm==null&&r.Estande_pl_m==null)return;
-      const miss=REQ.filter(k=>r[k]===""||r[k]==null);if(!miss.length&&(num(r.Ponto)<1||num(r.Ponto)>10||num(r.Medicao)<1||num(r.Medicao)>50))return bad.push(`linha ${i+2}: Ponto ou Medicao inválido`);if(miss.length)return bad.push(`linha ${i+2}: falta ${miss.join(", ")}`);
+      const miss=REQ.filter(k=>r[k]===""||r[k]==null);if(!miss.length&&!TR.some(t=>t.toLowerCase().replace(/\s/g,"")===String(r.Tratamento).toLowerCase().replace(/\s/g,"")))return bad.push(`linha ${i+2}: tratamento "${r.Tratamento}" não faz parte do experimento (use ${TR.join(", ")})`);if(!miss.length&&(num(r.Ponto)<1||num(r.Ponto)>10||num(r.Medicao)<1||num(r.Medicao)>50))return bad.push(`linha ${i+2}: Ponto ou Medicao inválido`);if(miss.length)return bad.push(`linha ${i+2}: falta ${miss.join(", ")}`);
       if(r.Altura_cm!=null&&(r.Altura_cm<=0||r.Altura_cm>250))bad.push(`linha ${i+2}: altura ${r.Altura_cm} cm fora do esperado`);
       rows.push({Produtor:String(r.Produtor),Fazenda:String(r.Fazenda),Tratamento:String(r.Tratamento),Estadio:String(r.Estadio),Data:isoDate(r.Data),DAE:num(r.DAE),
         Ponto:num(r.Ponto),Planta:num(r.Medicao),Altura_cm:r.Altura_cm,Estande_pl_m:r.Estande_pl_m,Observacoes:r.Observacoes||""})});
@@ -390,7 +393,7 @@ $("edSave").onclick=async()=>{if(MODE==="demo")return toast("No modo de exemplo 
   }catch(err){toast(`Salvei ${ok} linha(s); erro: ${err.message}`,1);$("edSave").disabled=false}};
 $("edGen").onclick=async()=>{if(MODE==="demo")return toast("No modo de exemplo nada é salvo.",1);
   const F=$("eF").value,E=$("eE").value;if(!F||!E)return toast("Escolha uma fazenda e um estádio.",1);
-  const rows=[];for(const[i,t]of TR.entries())for(let pt=1;pt<=NPT;pt++)for(let k=1;k<=NPL;k++)rows.push({fazenda_id:F,tratamento_id:i+1,estadio:E,ponto:pt,planta:k});
+  const rows=[];for(const t of TR)for(let pt=1;pt<=NPT;pt++)for(let k=1;k<=NPL;k++)rows.push({fazenda_id:F,tratamento_id:TRID[t],estadio:E,ponto:pt,planta:k});
   const{error}=await SB.from("plantas").upsert(rows,{onConflict:"fazenda_id,tratamento_id,estadio,ponto,planta",ignoreDuplicates:true});if(error)return toast(error.message,1);
   toast("Linhas criadas. Preencha e salve.");await loadDB()};
 $("edPl").addEventListener("click",async e=>{const b=e.target.closest("[data-delpl]");if(!b)return;if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Confirmar";return}
