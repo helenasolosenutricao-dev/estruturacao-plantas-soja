@@ -169,3 +169,9 @@ button.del.sure,.mini.danger.sure{background:#c0392b!important;color:#fff!import
 .crpr i[data-h=n],.crpr i[data-h=s]{left:calc(50% - 11px);cursor:ns-resize}.crpr i[data-h=n]{top:-11px}.crpr i[data-h=s]{bottom:-11px}
 .crpr i[data-h=w],.crpr i[data-h=e]{top:calc(50% - 11px);cursor:ew-resize}.crpr i[data-h=w]{left:-11px}.crpr i[data-h=e]{right:-11px}
 .crpbox .btns{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.smp .scrop{margin-top:4px}
+.cell .fnin{border:0;width:100%;font:inherit;font-size:12px;color:#fff;text-align:left;cursor:text;outline:none}.cell .fnin:focus{background:#000;box-shadow:inset 0 0 0 2px #f5c400;text-overflow:clip}
+.cell .mz{position:absolute;left:8px;bottom:30px;padding:3px 8px;border-radius:6px;background:#1e8a42;color:#fff;font-weight:700;font-size:13px}
+.cell .meas{position:absolute;top:128px;right:8px;min-height:32px;padding:0 10px;border:0;border-radius:6px;background:#000b;color:#fff;font:600 13px Barlow,system-ui,sans-serif;cursor:pointer;opacity:.85;z-index:2}.cell .meas:hover{opacity:1}
+.msteps{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.msteps .on{background:#16231a;color:#fff;border-color:#16231a}.mcm{display:inline-flex;align-items:center;gap:4px;font-size:14px}.mcm input{width:70px;min-height:34px;padding:0 6px;border:1px solid var(--line);border-radius:6px}
+.mst{overflow:visible}.mst canvas{cursor:crosshair}.mres{font-size:15px;margin:6px 0}
+#tab3 tr.editing td input{width:62px;min-height:34px;padding:0 6px;border:1px solid var(--ink);border-radius:6px;text-align:right;font:inherit}#tab3 .ed3{white-space:nowrap}#tab3 tr.editing{background:#fff8df}.mini.gold{background:#c9a227;border-color:#c9a227;color:#16231a;font-weight:700}

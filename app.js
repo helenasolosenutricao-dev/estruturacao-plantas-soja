@@ -203,10 +203,10 @@ function renderPainel(){
       return`<tr><td>${esc(prodById(f?.produtor_id)?.nome||"")} · ${esc(f?.nome||"")}</td>${TR.map(t=>`<td>${fmt(meanT(g,t,"cobertura_pct"))} · ${fmt(meanT(a,t,"altura_cm"))}</td>`).join("")}<td class="${cls(x)}">${pct(x)}</td></tr>`}).join("");
   /* plantas */
   $("tab3H").textContent=`${E} · ${NPT} pontos por tratamento · altura (cm) das 5 plantas e plantas contadas em cada metro (5 m)`;
-  const pf=by(pe,r=>r.fazenda_id+"|"+trOrd(r.tratamento)+"|"+r.ponto),M=Array.from({length:NPL},(_,i)=>i+1);
-  $("tab3").innerHTML=`<tr><th>Fazenda</th><th class="tl">Tratamento</th><th>Ponto</th>${M.map(i=>`<th>Alt. P${i}</th>`).join("")}<th>Altura média</th>${M.map(i=>`<th>${i}º m</th>`).join("")}<th>Estande (pl/m)</th></tr>`+
-    Object.entries(pf).sort((x,y)=>{const a=x[1][0],b=y[1][0];return(fazById(a.fazenda_id)?.nome||"").localeCompare(fazById(b.fazenda_id)?.nome||"")||trOrd(a.tratamento)-trOrd(b.tratamento)||a.ponto-b.ponto}).map(([k,a])=>{const f=fazById(a[0].fazenda_id);
-      return`<tr><td>${esc(f?.nome||"")}</td><td class="tl"><span class="dot" style="background:${COL[a[0].tratamento]}"></span>${esc(a[0].tratamento)}</td><td>${a[0].ponto}</td>${M.map(i=>`<td>${fmt(a.find(r=>r.planta===i)?.altura_cm)}</td>`).join("")}<td><b>${fmt(st(a.map(r=>r.altura_cm)).m)}</b></td>${M.map(i=>`<td>${fmt(a.find(r=>r.planta===i)?.estande_pl_m,0)}</td>`).join("")}<td><b>${fmt(st(a.map(r=>r.estande_pl_m)).m)}</b></td></tr>`}).join("");
+  const pf=by(pe,r=>r.fazenda_id+"|"+trOrd(r.tratamento)+"|"+r.ponto),M=Array.from({length:NPL},(_,i)=>i+1);TAB3={};
+  $("tab3").innerHTML=`<tr><th>Fazenda</th><th class="tl">Tratamento</th><th>Ponto</th>${M.map(i=>`<th>Alt. P${i}</th>`).join("")}<th>Altura média</th>${M.map(i=>`<th>${i}º m</th>`).join("")}<th>Estande (pl/m)</th>${canEd()?"<th></th>":""}</tr>`+
+    Object.entries(pf).sort((x,y)=>{const a=x[1][0],b=y[1][0];return(fazById(a.fazenda_id)?.nome||"").localeCompare(fazById(b.fazenda_id)?.nome||"")||trOrd(a.tratamento)-trOrd(b.tratamento)||a.ponto-b.ponto}).map(([k,a])=>{const f=fazById(a[0].fazenda_id);TAB3[k]=a;
+      return`<tr data-k="${esc(k)}"><td>${esc(f?.nome||"")}</td><td class="tl"><span class="dot" style="background:${COL[a[0].tratamento]}"></span>${esc(a[0].tratamento)}</td><td>${a[0].ponto}</td>${M.map(i=>`<td data-pl="${i}" data-f="altura_cm">${fmt(a.find(r=>r.planta===i)?.altura_cm)}</td>`).join("")}<td><b>${fmt(st(a.map(r=>r.altura_cm)).m)}</b></td>${M.map(i=>`<td data-pl="${i}" data-f="estande_pl_m">${fmt(a.find(r=>r.planta===i)?.estande_pl_m,0)}</td>`).join("")}<td><b>${fmt(st(a.map(r=>r.estande_pl_m)).m)}</b></td>${canEd()?`<td class="ed3"><button type="button" class="mini" data-e3="edit" title="Editar esta linha">✎ Editar</button></td>`:""}</tr>`}).join("");
   /* insights */
   const ins=[];
   const rk=TR.map(t=>[t,meanT(ge,t,"cobertura_pct")]).filter(x=>!isNaN(x[1])).sort((a,b)=>b[1]-a[1]);
@@ -245,6 +245,21 @@ function renderPF(E){
     options:{maintainAspectRatio:false,layout:{padding:{bottom:36}},plugins:{legend:{display:false},tooltip:{callbacks:{title:c=>it[c[0].dataIndex].t+" · "+it[c[0].dataIndex].fz+" · "+it[c[0].dataIndex].pr,label:c=>`média ${fmt(c.raw)} ± ${fmt(it[c.dataIndex].S.sd)} cm (n=${it[c.dataIndex].S.n})`}}},
       scales:{x:{ticks:{autoSkip:false,maxRotation:0,font:{size:11}}},y:{beginAtZero:true,title:{display:true,text:"cm"}}}}})}
 const fitT=(x,t,w)=>{if(x.measureText(t).width<=w)return t;while(t.length>3&&x.measureText(t+"…").width>w)t=t.slice(0,-1);return t+"…"};
+/* plantas avaliadas: editar e salvar uma linha (ponto) direto no banco */
+let TAB3={};
+$("tab3").addEventListener("click",async e=>{const b=e.target.closest("[data-e3]");if(!b)return;const tr=b.closest("tr"),a=TAB3[tr.dataset.k];if(!a)return;
+  if(b.dataset.e3==="edit"){tr.classList.add("editing");tr.querySelectorAll("td[data-pl]").forEach(td=>{const r=a.find(x=>x.planta===+td.dataset.pl),v=r?.[td.dataset.f];
+      td.innerHTML=`<input type="text" inputmode="decimal" value="${v==null?"":String(v).replace(".",",")}" aria-label="${td.dataset.f==="altura_cm"?"Altura da planta "+td.dataset.pl+" (cm)":"Plantas no "+td.dataset.pl+"º metro"}">`});
+    tr.querySelector(".ed3").innerHTML=`<button type="button" class="mini gold" data-e3="save">Salvar</button> <button type="button" class="mini" data-e3="cancel">Cancelar</button>`;tr.querySelector("input")?.focus();return}
+  if(b.dataset.e3==="cancel")return renderPainel();
+  if(b.dataset.e3==="save"){if(MODE==="demo")return toast("No modo de exemplo nada é salvo.",1);const vals={};let bad=false;
+    tr.querySelectorAll("td[data-pl]").forEach(td=>{const raw=td.querySelector("input").value.trim(),v=raw===""?null:num(raw);if(raw!==""&&v==null)bad=true;
+      if(td.dataset.f==="altura_cm"&&v!=null&&(v<0||v>250))bad=true;(vals[td.dataset.pl]=vals[td.dataset.pl]||{})[td.dataset.f]=v});
+    if(bad)return toast("Confira os valores: use números (altura entre 0 e 250 cm).",1);b.disabled=true;let n=0;
+    try{for(const[pl,v]of Object.entries(vals)){const r=a.find(x=>x.planta===+pl);
+        if(r){if(r.altura_cm===v.altura_cm&&r.estande_pl_m===v.estande_pl_m)continue;const{error}=await SB.from("plantas").update({altura_cm:v.altura_cm,estande_pl_m:v.estande_pl_m,atualizado_em:new Date().toISOString()}).eq("id",r.id);if(error)throw error;n++}
+        else if(v.altura_cm!=null||v.estande_pl_m!=null){const o=a[0];const{error}=await SB.from("plantas").insert({fazenda_id:o.fazenda_id,tratamento_id:TRID[o.tratamento],estadio:o.estadio,ponto:o.ponto,planta:+pl,altura_cm:v.altura_cm,estande_pl_m:v.estande_pl_m,data:o.data||null,dae:o.dae??null});if(error)throw error;n++}}
+      toast(n?`Plantas avaliadas: ${n} valor(es) salvo(s).`:"Nada mudou nesta linha.");await loadDB()}catch(err){toast("Não foi possível salvar: "+err.message,1);b.disabled=false}}});
 function renderLoc(pe,ge,E){
   const k=$("locA").value,isGC=k==="cobertura_pct",rows=isGC?ge:pe,f=k==="pop_ha"?1000:1,un={cobertura_pct:"%",altura_cm:"cm",estande_pl_m:"pl/m",pop_ha:"mil pl/ha"}[k];
   $("locT").textContent=`Comparação por local · ${$("locA").selectedOptions[0].text.replace(/ \(.*\)/,"")} · ${E}`;
@@ -435,6 +450,68 @@ async function rotFoto(b){if(b.disabled)return;const K=KIND[b.dataset.rotk],r=K&
     await SB.storage.from("fotos").remove(old);toast("Foto girada 90°.");await loadDB()}
   catch(err){toast("Não foi possível girar: "+err.message,1);b.disabled=false;b.textContent="↻ Girar"}}
 document.addEventListener("click",e=>{const rb=e.target.closest&&e.target.closest("button.rot");if(rb){e.stopPropagation();e.preventDefault();rotFoto(rb)}},true);
+/* ====================== nome da imagem editável ====================== */
+const canEd=()=>(PAPEL==="admin"||PAPEL==="avaliador")&&MODE!=="demo";
+const nameIn=(k,r)=>!r?"":canEd()?`<input class="fn fnin" data-nk="${k}" data-nid="${esc(r.id)}" value="${esc(r.arquivo||"")}" placeholder="nome da imagem" aria-label="Nome da imagem" title="Clique para editar o nome">`:r.arquivo?`<span class="fn" title="${esc(r.arquivo)}">${esc(r.arquivo)}</span>`:"";
+document.addEventListener("click",e=>{if(e.target.closest&&e.target.closest(".fnin"))e.stopPropagation()},true);
+document.addEventListener("keydown",e=>{if(e.target.classList?.contains("fnin")){e.stopPropagation();if(e.key==="Enter")e.target.blur();if(e.key==="Escape"){e.target.value=e.target.defaultValue;e.target.blur()}}},true);
+document.addEventListener("change",async e=>{const el=e.target;if(!el.classList?.contains("fnin"))return;const K=KIND[el.dataset.nk],r=K&&K.arr().find(x=>x.id===el.dataset.nid),v=el.value.trim();if(!r)return;
+  if(!v){el.value=r.arquivo||"";return toast("O nome não pode ficar vazio.",1)}
+  const{error}=await SB.from(K.tab).update({arquivo:v}).eq("id",r.id);if(error){el.value=r.arquivo||"";return toast("Não foi possível salvar o nome: "+error.message,1)}
+  r.arquivo=v;el.defaultValue=v;toast("Nome da imagem salvo.")},true);
+
+/* ====================== medida da planta pela trena ====================== */
+const measTag=r=>{const m=r&&r.medidas;return m&&m.altura_cm?`<span class="mz">Altura ${fmt(m.altura_cm)} cm${m.raiz_cm?` · raiz ${fmt(m.raiz_cm)} cm`:""}</span>`:""};
+const measB=(k,id)=>canEd()?`<button type="button" class="meas" data-mk="${k}" data-mid="${esc(id)}" title="Medir a planta usando a trena">📏 Medir</button>`:"";
+/* sugere colo, ápice e ponta da raiz: separa parte verde (aérea) e marrom (raiz) sobre o pano azul */
+function plantGuess(img){const M=500,sc=Math.min(1,M/Math.max(img.width,img.height)),w=Math.round(img.width*sc),h=Math.round(img.height*sc),c=document.createElement("canvas");c.width=w;c.height=h;
+  const x=c.getContext("2d");x.drawImage(img,0,0,w,h);const d=x.getImageData(0,0,w,h).data,G=[],Rt=[];
+  for(let p=0,i=0;p<w*h;p++,i+=4){const r=d[i],g=d[i+1],b=d[i+2];if(b>r+30&&b>g+12)continue;if(r>150&&g>120&&b<110)continue;/* trena amarela */
+    const px=p%w,py=(p-px)/w;if(g>=r-5&&g>b+15&&g>60)G.push([px,py]);else if(r>g+28&&r>b+45&&r>70&&r<235)Rt.push([px,py])}
+  {const br=blueRect(img),inR=p=>!br||(p[0]/sc>=br.x&&p[0]/sc<=br.x+br.w&&p[1]/sc>=br.y&&p[1]/sc<=br.y+br.h);
+    for(const A of[G,Rt])A.splice(0,A.length,...A.filter(inR))}
+  if(G.length<30)return null;const all=G.concat(Rt),mx=all.reduce((a,p)=>a+p[0],0)/all.length,my=all.reduce((a,p)=>a+p[1],0)/all.length;
+  let sxx=0,syy=0,sxy=0;for(const[a,b]of all){sxx+=(a-mx)**2;syy+=(b-my)**2;sxy+=(a-mx)*(b-my)}const th=0.5*Math.atan2(2*sxy,sxx-syy);let ux=Math.cos(th),uy=Math.sin(th);
+  const pr=p=>(p[0]-mx)*ux+(p[1]-my)*uy,pc=(arr,q)=>{const v=arr.map(pr).sort((a,b)=>a-b);return v[Math.min(v.length-1,Math.max(0,Math.round(q*(v.length-1))))]};
+  if(Rt.length>15&&pc(Rt,.5)>pc(G,.5)){ux=-ux;uy=-uy}/* t cresce da raiz para o ápice */
+  const pt=t=>({x:(mx+ux*t)/sc,y:(my+uy*t)/sc}),near=(arr,t)=>{let b=null,bd=1e9;for(const p of arr){const e=Math.abs(pr(p)-t);if(e<bd){bd=e;b=p}}return{x:b[0]/sc,y:b[1]/sc}};
+  const tip=pc(G,.995),hasR=Rt.length>15,rt=hasR?pc(Rt,.005):null,base=hasR?(()=>{const v=Rt.map(pr).sort((a,b)=>a-b),L=pc(G,.995)-v[0],tol=Math.max(4,L*0.04);let i=Math.round(v.length*.005);while(i<v.length-1&&v[i+1]-v[i]<tol)i++;return v[i]})():pc(G,.005);
+  return{tip:near(G,tip),base:(()=>{const q=pt(base),qx=q.x*sc,qy=q.y*sc;let b=all[0],bd=1e18;for(const p of all){const d=(p[0]-qx)**2+(p[1]-qy)**2;if(d<bd){bd=d;b=p}}return{x:b[0]/sc,y:b[1]/sc}})(),root:hasR?near(Rt,rt):null}}
+function openMeasure(img,m0,title){return new Promise(done=>{const W=img.width,H=img.height;let M=JSON.parse(JSON.stringify(m0||{}));M.cm=M.cm||10;let mode=M.cal?.length===2?(M.base&&M.tip?"base":"base"):"cal";
+  const ov=document.createElement("div");ov.className="crp";ov.innerHTML=`<div class="crpbox" role="dialog" aria-modal="true" aria-label="Medir planta"><h3>${esc(title||"Medir planta")}</h3>
+    <div class="msteps"><button type="button" class="mini" data-m="cal">1 · Trena: 2 cliques</button><label class="mcm">distância <input type="number" min="0.5" step="0.5" value="${M.cm}"> cm</label>
+      <button type="button" class="mini" data-m="base">2 · Colo (base)</button><button type="button" class="mini" data-m="tip">3 · Ápice</button><button type="button" class="mini" data-m="root">4 · Ponta da raiz (opcional)</button>
+      <button type="button" class="mini" data-a="auto">Sugerir planta automaticamente</button></div>
+    <p class="h mhelp"></p><div class="crpst mst"><canvas></canvas></div><p class="mres"></p>
+    <div class="btns"><button type="button" class="mini" data-a="clear">Limpar medidas</button><span style="flex:1"></span><button type="button" class="btn ghost" data-a="no">Cancelar</button><button type="button" class="btn gold" data-a="ok">Salvar medida</button></div></div>`;
+  document.body.append(ov);const cv=ov.querySelector("canvas"),ctx=cv.getContext("2d"),k=Math.min(Math.min(innerWidth*0.92,900)/W,innerHeight*0.58/H,1);cv.width=Math.round(W*k);cv.height=Math.round(H*k);{const st=ov.querySelector(".mst");st.style.width=cv.width+"px";st.style.height=cv.height+"px"}
+  const cmIn=ov.querySelector(".mcm input"),help={cal:"Clique em duas marcas da trena (por exemplo 0 e 10) e informe a distância entre elas.",base:"Clique no colo da planta (onde começa a raiz).",tip:"Clique no ápice da planta (ponta mais alta da parte aérea).",root:"Clique na ponta da raiz principal."};
+  const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y),pxcm=()=>M.cal?.length===2&&+cmIn.value>0?dist(M.cal[0],M.cal[1])/+cmIn.value:0;
+  const calc=()=>{const p=pxcm();M.cm=+cmIn.value;M.altura_cm=p&&M.base&&M.tip?+(dist(M.base,M.tip)/p).toFixed(1):null;M.raiz_cm=p&&M.base&&M.root?+(dist(M.base,M.root)/p).toFixed(1):null};
+  const dot=(p,c,l)=>{ctx.fillStyle=c;ctx.strokeStyle="#fff";ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x*k,p.y*k,6,0,7);ctx.fill();ctx.stroke();ctx.font="700 13px Barlow,sans-serif";ctx.fillStyle="#fff";ctx.strokeStyle="#000";ctx.lineWidth=3;ctx.strokeText(l,p.x*k+9,p.y*k-8);ctx.fillText(l,p.x*k+9,p.y*k-8)};
+  const seg=(a,b,c)=>{ctx.strokeStyle=c;ctx.lineWidth=3;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(a.x*k,a.y*k);ctx.lineTo(b.x*k,b.y*k);ctx.stroke()};
+  const draw=()=>{calc();ctx.drawImage(img,0,0,cv.width,cv.height);
+    if(M.cal?.[0])dot(M.cal[0],"#f5c400","");if(M.cal?.length===2){seg(M.cal[0],M.cal[1],"#f5c400");dot(M.cal[1],"#f5c400",`${cmIn.value} cm`)}
+    if(M.base&&M.tip)seg(M.base,M.tip,"#1e8a42");if(M.base&&M.root)seg(M.base,M.root,"#a0522d");
+    if(M.base)dot(M.base,"#16231a","colo");if(M.tip)dot(M.tip,"#1e8a42",M.altura_cm?`${fmt(M.altura_cm)} cm`:"ápice");if(M.root)dot(M.root,"#a0522d",M.raiz_cm?`raiz ${fmt(M.raiz_cm)} cm`:"raiz");
+    ov.querySelectorAll("[data-m]").forEach(b=>b.classList.toggle("on",b.dataset.m===mode));ov.querySelector(".mhelp").textContent=help[mode];
+    ov.querySelector(".mres").innerHTML=!pxcm()?"Marque a trena primeiro (passo 1).":M.altura_cm?`<b>Altura da planta: ${fmt(M.altura_cm)} cm</b>${M.raiz_cm?` · Comprimento da raiz: ${fmt(M.raiz_cm)} cm`:""}`:"Marque o colo e o ápice."};
+  cv.addEventListener("click",e=>{const r=cv.getBoundingClientRect(),p={x:(e.clientX-r.left)*(cv.width/r.width)/k,y:(e.clientY-r.top)*(cv.height/r.height)/k};
+    if(mode==="cal"){M.cal=(M.cal?.length===1?[M.cal[0],p]:[p]);if(M.cal.length===2)mode=M.base?(M.tip?"root":"tip"):"base"}
+    else if(mode==="base"){M.base=p;mode=M.tip?"root":"tip"}else if(mode==="tip"){M.tip=p;mode="root"}else if(mode==="root")M.root=p;draw()});
+  cmIn.addEventListener("input",draw);
+  const kd=e=>{if(e.key==="Escape")end(null)},end=v=>{ov.remove();document.removeEventListener("keydown",kd);done(v)};document.addEventListener("keydown",kd);
+  ov.addEventListener("click",e=>{const b=e.target.closest("[data-m],[data-a]");if(!b)return;if(b.dataset.m){mode=b.dataset.m;if(mode==="cal")M.cal=[];return draw()}
+    const a=b.dataset.a;if(a==="auto"){const g=plantGuess(img);if(!g)toast("Não consegui achar a planta na foto; marque à mão.",1);else{M.base=g.base;M.tip=g.tip;M.root=g.root;mode=M.cal?.length===2?"root":"cal";draw();if(!pxcm())toast("Agora marque dois pontos da trena e a distância.")}}
+    if(a==="clear"){M={cm:+cmIn.value};mode="cal";draw()}if(a==="no")end(null);
+    if(a==="ok"){calc();if(!M.altura_cm)return toast("Marque a trena, o colo e o ápice antes de salvar.",1);end({cal:M.cal,cm:M.cm,base:M.base,tip:M.tip,root:M.root||null,altura_cm:M.altura_cm,raiz_cm:M.raiz_cm,w:W,h:H})}});
+  draw();ov.querySelector('[data-a="ok"]').focus()})}
+async function measFoto(b){const K=KIND[b.dataset.mk],r=K&&K.arr().find(x=>x.id===b.dataset.mid),u=r&&URL_[r.foto_path];if(!u)return;
+  try{const img=await createImageBitmap(await (await fetch(u,{cache:"no-store"})).blob());let m0=r.medidas;if(m0&&(m0.w!==img.width||m0.h!==img.height))m0=null;
+    const M=await openMeasure(img,m0,`Medir · ${r.tratamento||""}${r.arquivo?" · "+r.arquivo:""}`);if(!M)return;
+    const{error}=await SB.from(K.tab).update({medidas:M}).eq("id",r.id);if(error)throw error;r.medidas=M;toast(`Medida salva: altura ${fmt(M.altura_cm)} cm${M.raiz_cm?` · raiz ${fmt(M.raiz_cm)} cm`:""}.`);renderFotos()}
+  catch(err){toast("Não foi possível salvar a medida: "+err.message,1)}}
+document.addEventListener("click",e=>{const mb=e.target.closest&&e.target.closest("button.meas");if(mb){e.stopPropagation();e.preventDefault();measFoto(mb)}},true);
 /* ====================== recorte pelo pano azul ====================== */
 /* acha o retângulo do pano azul: linhas e colunas com bastante azul, maior trecho contínuo */
 function blueRect(img){const M=360,sc=Math.min(1,M/Math.max(img.width,img.height)),w=Math.max(1,Math.round(img.width*sc)),h=Math.max(1,Math.round(img.height*sc)),c=document.createElement("canvas");c.width=w;c.height=h;
@@ -507,13 +584,13 @@ function renderFotos(){
   const fn=r=>r&&r.arquivo?`<span class="fn" title="${esc(r.arquivo)}">${esc(r.arquivo)}</span>`:"";
   if(nP)h+=`<div class="sec">Plantas inteiras</div>`;
   if(nP)h+=ts.map(t=>{const pf=pfs.filter(r=>r.tratamento===t&&URL_[r.foto_path]).sort((x,y)=>((x.ponto||1)-(y.ponto||1))||((x.foto||1)-(y.foto||1)))[0],u=pf&&URL_[pf.foto_path],a=pf?.ponto||1,fo=pf?.foto||1;
-    return u?`<div role="button" tabindex="0" class="cell tall" data-pl="${esc(t)}" data-pp="${a}" data-pf="${fo}"><img src="${esc(u)}" alt="Plantas inteiras ${esc(t)}"><span class="bd">${esc(t)}</span>${delB("plantas",pf.id)}${rotB("plantas",pf.id)}${cropB("plantas",pf.id)}${fn(pf)}</div>`:`<div class="cell tall" style="cursor:default"><span class="nf">${esc(t)} · plantas inteiras: sem foto</span></div>`}).join("");
+    return u?`<div role="button" tabindex="0" class="cell tall" data-pl="${esc(t)}" data-pp="${a}" data-pf="${fo}"><img src="${esc(u)}" alt="Plantas inteiras ${esc(t)}"><span class="bd">${esc(t)}</span>${delB("plantas",pf.id)}${rotB("plantas",pf.id)}${cropB("plantas",pf.id)}${measTag(pf)}${measB("plantas",pf.id)}${nameIn("plantas",pf)}</div>`:`<div class="cell tall" style="cursor:default"><span class="nf">${esc(t)} · plantas inteiras: sem foto</span></div>`}).join("");
   const fgs=FC.filter(r=>r.tipo==="grupo"&&r.fazenda_id===$("cF").value&&r.estadio===$("cE").value&&URL_[r.foto_path]);
   if(fgs.length)h+=`<div class="sec">Fotos em grupo</div>`+ts.map(t=>{const r=fgs.find(x=>x.tratamento===t),u=r&&URL_[r.foto_path];
-    return u?`<div role="button" tabindex="0" class="cell tall" data-ct="${esc(t)}" data-ctipo="grupo"><img src="${esc(u)}" alt="Foto em grupo ${esc(t)}"><span class="bd">${esc(t)}</span>${delB("comp",r.id)}${rotB("comp",r.id)}${cropB("comp",r.id)}${fn(r)}</div>`:`<div class="cell tall" style="cursor:default"><span class="nf">${esc(t)} · foto em grupo: sem foto</span></div>`}).join("");
+    return u?`<div role="button" tabindex="0" class="cell tall" data-ct="${esc(t)}" data-ctipo="grupo"><img src="${esc(u)}" alt="Foto em grupo ${esc(t)}"><span class="bd">${esc(t)}</span>${delB("comp",r.id)}${rotB("comp",r.id)}${cropB("comp",r.id)}${nameIn("comp",r)}</div>`:`<div class="cell tall" style="cursor:default"><span class="nf">${esc(t)} · foto em grupo: sem foto</span></div>`}).join("");
   if(nP||fgs.length)h+=`<div class="sec">Ground Cover (falso NDVI)</div>`;
   for(let a=1;a<=nA;a++)for(let fo=1;fo<=nFo;fo++)h+=ts.map(t=>{const g=gcRows(t).find(r=>(r.amostra||1)===a&&(r.foto||1)===fo),im=imgOf(g,mode);
-    return im?`<div role="button" tabindex="0" class="cell" data-t="${esc(t)}" data-a="${a}" data-f="${fo}">${im}<span class="bd">Ponto ${a} · foto ${fo} · ${fmt(g.cobertura_pct)}%</span>${g.foto_path?delB("",g.id)+rotB("",g.id)+cropB("",g.id):""}${fn(g)}</div>`:`<div class="cell" style="cursor:default"><span class="nf">${esc(t)} · ponto ${a} · foto ${fo}: sem foto</span></div>`}).join("");
+    return im?`<div role="button" tabindex="0" class="cell" data-t="${esc(t)}" data-a="${a}" data-f="${fo}">${im}<span class="bd">Ponto ${a} · foto ${fo} · ${fmt(g.cobertura_pct)}%</span>${g.foto_path?delB("",g.id)+rotB("",g.id)+cropB("",g.id):""}${nameIn("",g)}</div>`:`<div class="cell" style="cursor:default"><span class="nf">${esc(t)} · ponto ${a} · foto ${fo}: sem foto</span></div>`}).join("");
   $("bigGrid").innerHTML=h;
   const pm=$("pMode").value,A=$("pA").value,B=$("pB").value;
   const fill=(sel,t)=>{const rows=gcRows(t).slice().sort((x,y)=>(x.amostra||1)-(y.amostra||1)||(x.foto||1)-(y.foto||1)),v=sel.value;
@@ -537,12 +614,13 @@ function renderComp(){
     $(pre+"_grid").style.setProperty("--n",TR.length);
     $(pre+"_grid").innerHTML=TR.map(t=>`<div class="hd" style="background:${COL[t]}"><span>${esc(t)}</span><b>${nome}</b>${canUp()?`<span class="adds"><button type="button" class="add" data-cadd="${tipo}" data-t="${esc(t)}">${url(t)?"Trocar foto":"+ Adicionar foto"}</button></span>`:""}</div>`).join("")+
       TR.map(t=>{const r=rows.find(x=>x.tratamento===t),u=url(t);
-        return u?`<div role="button" tabindex="0" class="cell tall" data-ct="${esc(t)}" data-ctipo="${tipo}"><img src="${esc(u)}" alt="${esc(nome)} · ${esc(t)}"><span class="bd">${esc(t)}</span>${delB("comp",r.id)}${rotB("comp",r.id)}${cropB("comp",r.id)}${fnTag(r)}</div>`
+        return u?`<div role="button" tabindex="0" class="cell tall" data-ct="${esc(t)}" data-ctipo="${tipo}"><img src="${esc(u)}" alt="${esc(nome)} · ${esc(t)}"><span class="bd">${esc(t)}</span>${delB("comp",r.id)}${rotB("comp",r.id)}${cropB("comp",r.id)}${tipo==="individual"?measTag(r)+measB("comp",r.id):""}${nameIn("comp",r)}</div>`
           :`<div class="cell tall" style="cursor:default"><span class="nf">${esc(t)} · ${nome.toLowerCase()}: sem foto</span></div>`}).join("");
     for(const[k,d]of[["_A","Maxcel"],["_B","Controle"]]){const el=$(pre+k);if(!el.options.length){setSel(el,opts((k==="_A"?TR.filter(t=>t!=="Controle"):["Controle"]).map(t=>({v:t,t}))));el.value=d}}
     const A=$(pre+"_A").value,B=$(pre+"_B").value,nf=t=>`<div class="nfc">${esc(t)}: sem foto</div>`;
     $(pre+"_lyA").innerHTML=url(A)?`<img src="${esc(url(A))}" alt="">`:nf(A);$(pre+"_lyB").innerHTML=url(B)?`<img src="${esc(url(B))}" alt="">`:nf(B);
-    $(pre+"_tgA").textContent=A;$(pre+"_tgA").style.background=COL[A];$(pre+"_tgB").textContent=B;$(pre+"_tgB").style.background=COL[B];compSlide(pre)}
+    const mt=t=>{const m=rows.find(x=>x.tratamento===t)?.medidas;return m&&m.altura_cm?` · ${fmt(m.altura_cm)} cm${m.raiz_cm?` · raiz ${fmt(m.raiz_cm)} cm`:""}`:""};
+    $(pre+"_tgA").textContent=A+mt(A);$(pre+"_tgA").style.background=COL[A];$(pre+"_tgB").textContent=B+mt(B);$(pre+"_tgB").style.background=COL[B];compSlide(pre)}
 }
 const compSlide=()=>{};
 let CQ=null;
