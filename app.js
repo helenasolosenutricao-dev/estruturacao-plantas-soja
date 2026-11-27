@@ -269,6 +269,20 @@ function renderTrSel(){if($("trSel").childElementCount)return;
   $("trSel").innerHTML=TR.map(t=>`<label><input type="checkbox" value="${esc(t)}" checked><span class="dot" style="background:${COL[t]}"></span>${esc(t)}</label>`).join("")+`<button class="mini" type="button" id="trAll">Todos os tratamentos</button>`;
   $("trSel").addEventListener("change",renderFotos);$("trAll").onclick=()=>{$("trSel").querySelectorAll("input").forEach(i=>i.checked=true);renderFotos()}}
 const delB=(k,id,inline)=>PAPEL==="admin"&&MODE!=="demo"?`<button type="button" class="del${inline?" inl":""}" data-delk="${k}" data-delid="${esc(id)}" title="Excluir esta foto">Excluir</button>`:"";
+const rotB=(k,id)=>(PAPEL==="admin"||PAPEL==="avaliador")&&MODE!=="demo"?`<button type="button" class="rot" data-rotk="${k}" data-rotid="${esc(id)}" title="Girar 90° no sentido horário">↻ Girar</button>`:"";
+async function rotFoto(b){if(b.disabled)return;const K=KIND[b.dataset.rotk],r=K&&K.arr().find(x=>x.id===b.dataset.rotid);if(!r)return;
+  b.disabled=true;b.textContent="Girando…";const stamp=Date.now(),upd={},old=[];
+  try{for(const col of["foto_path","mapa_path"]){const p=r[col],u=p&&URL_[p];if(!u)continue;
+      const bm=await createImageBitmap(await (await fetch(u,{cache:"no-store"})).blob());
+      const c=document.createElement("canvas");c.width=bm.height;c.height=bm.width;const x=c.getContext("2d");x.translate(c.width,0);x.rotate(Math.PI/2);x.drawImage(bm,0,0);
+      const png=/\.png$/i.test(p),type=png?"image/png":"image/jpeg",out=await new Promise(res=>c.toBlob(res,type,.9));
+      const np=p.replace(/(-r\d+)?(\.\w+)$/,`-r${stamp}$2`);
+      const{error}=await SB.storage.from("fotos").upload(np,out,{upsert:true,contentType:type});if(error)throw error;upd[col]=np;old.push(p)}
+    if(!old.length)throw new Error("foto não encontrada");
+    const{error}=await SB.from(K.tab).update(upd).eq("id",r.id);if(error)throw error;
+    await SB.storage.from("fotos").remove(old);toast("Foto girada 90°.");await loadDB()}
+  catch(err){toast("Não foi possível girar: "+err.message,1);b.disabled=false;b.textContent="↻ Girar"}}
+document.addEventListener("click",e=>{const rb=e.target.closest&&e.target.closest("button.rot");if(rb){e.stopPropagation();e.preventDefault();rotFoto(rb)}},true);
 async function delFoto(b){if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Confirmar exclusão";b.classList.add("sure");setTimeout(()=>{if(b.isConnected&&b.dataset.sure==="1"){b.dataset.sure="";b.textContent="Excluir";b.classList.remove("sure")}},5000);return}
   const K=KIND[b.dataset.delk||""],r=K.arr().find(x=>String(x.id)===b.dataset.delid);if(!r)return;b.disabled=true;
   const{error}=await SB.from(K.tab).delete().eq("id",r.id);if(error){b.disabled=false;return toast(error.message,1)}
@@ -295,13 +309,13 @@ function renderFotos(){
   const fn=r=>r&&r.arquivo?`<span class="fn" title="${esc(r.arquivo)}">${esc(r.arquivo)}</span>`:"";
   if(nP)h+=`<div class="sec">Plantas inteiras</div>`;
   if(nP)h+=ts.map(t=>{const pf=pfs.filter(r=>r.tratamento===t&&URL_[r.foto_path]).sort((x,y)=>((x.ponto||1)-(y.ponto||1))||((x.foto||1)-(y.foto||1)))[0],u=pf&&URL_[pf.foto_path],a=pf?.ponto||1,fo=pf?.foto||1;
-    return u?`<div role="button" tabindex="0" class="cell tall" data-pl="${esc(t)}" data-pp="${a}" data-pf="${fo}"><img src="${esc(u)}" alt="Plantas inteiras ${esc(t)}"><span class="bd">${esc(t)}</span>${delB("plantas",pf.id)}${fn(pf)}</div>`:`<div class="cell tall" style="cursor:default"><span class="nf">${esc(t)} · plantas inteiras: sem foto</span></div>`}).join("");
+    return u?`<div role="button" tabindex="0" class="cell tall" data-pl="${esc(t)}" data-pp="${a}" data-pf="${fo}"><img src="${esc(u)}" alt="Plantas inteiras ${esc(t)}"><span class="bd">${esc(t)}</span>${delB("plantas",pf.id)}${rotB("plantas",pf.id)}${fn(pf)}</div>`:`<div class="cell tall" style="cursor:default"><span class="nf">${esc(t)} · plantas inteiras: sem foto</span></div>`}).join("");
   const fgs=FC.filter(r=>r.tipo==="grupo"&&r.fazenda_id===$("cF").value&&r.estadio===$("cE").value&&URL_[r.foto_path]);
   if(fgs.length)h+=`<div class="sec">Fotos em grupo</div>`+ts.map(t=>{const r=fgs.find(x=>x.tratamento===t),u=r&&URL_[r.foto_path];
-    return u?`<div role="button" tabindex="0" class="cell tall" data-ct="${esc(t)}" data-ctipo="grupo"><img src="${esc(u)}" alt="Foto em grupo ${esc(t)}"><span class="bd">${esc(t)}</span>${delB("comp",r.id)}${fn(r)}</div>`:`<div class="cell tall" style="cursor:default"><span class="nf">${esc(t)} · foto em grupo: sem foto</span></div>`}).join("");
+    return u?`<div role="button" tabindex="0" class="cell tall" data-ct="${esc(t)}" data-ctipo="grupo"><img src="${esc(u)}" alt="Foto em grupo ${esc(t)}"><span class="bd">${esc(t)}</span>${delB("comp",r.id)}${rotB("comp",r.id)}${fn(r)}</div>`:`<div class="cell tall" style="cursor:default"><span class="nf">${esc(t)} · foto em grupo: sem foto</span></div>`}).join("");
   if(nP||fgs.length)h+=`<div class="sec">Ground Cover (falso NDVI)</div>`;
   for(let a=1;a<=nA;a++)for(let fo=1;fo<=nFo;fo++)h+=ts.map(t=>{const g=gcRows(t).find(r=>(r.amostra||1)===a&&(r.foto||1)===fo),im=imgOf(g,mode);
-    return im?`<div role="button" tabindex="0" class="cell" data-t="${esc(t)}" data-a="${a}" data-f="${fo}">${im}<span class="bd">Ponto ${a} · foto ${fo} · ${fmt(g.cobertura_pct)}%</span>${g.foto_path?delB("",g.id):""}${fn(g)}</div>`:`<div class="cell" style="cursor:default"><span class="nf">${esc(t)} · ponto ${a} · foto ${fo}: sem foto</span></div>`}).join("");
+    return im?`<div role="button" tabindex="0" class="cell" data-t="${esc(t)}" data-a="${a}" data-f="${fo}">${im}<span class="bd">Ponto ${a} · foto ${fo} · ${fmt(g.cobertura_pct)}%</span>${g.foto_path?delB("",g.id)+rotB("",g.id):""}${fn(g)}</div>`:`<div class="cell" style="cursor:default"><span class="nf">${esc(t)} · ponto ${a} · foto ${fo}: sem foto</span></div>`}).join("");
   $("bigGrid").innerHTML=h;
   const pm=$("pMode").value,[a,fo]=$("pS").value.split("-").map(Number),A=$("pA").value,B=$("pB").value,gA=gcRows(A).find(r=>(r.amostra||1)===a&&(r.foto||1)===(fo||1)),gB=gcRows(B).find(r=>(r.amostra||1)===a&&(r.foto||1)===(fo||1));
   const nf=t=>`<div style="display:grid;place-items:center;color:#fff;height:100%">${esc(t)} · ponto ${a} · foto ${fo||1}: sem foto</div>`;
@@ -321,7 +335,7 @@ function renderComp(){
     $(pre+"_grid").style.setProperty("--n",TR.length);
     $(pre+"_grid").innerHTML=TR.map(t=>`<div class="hd" style="background:${COL[t]}"><span>${esc(t)}</span><b>${nome}</b>${canUp()?`<span class="adds"><button type="button" class="add" data-cadd="${tipo}" data-t="${esc(t)}">${url(t)?"Trocar foto":"+ Adicionar foto"}</button></span>`:""}</div>`).join("")+
       TR.map(t=>{const r=rows.find(x=>x.tratamento===t),u=url(t);
-        return u?`<div role="button" tabindex="0" class="cell tall" data-ct="${esc(t)}" data-ctipo="${tipo}"><img src="${esc(u)}" alt="${esc(nome)} · ${esc(t)}"><span class="bd">${esc(t)}</span>${delB("comp",r.id)}${fnTag(r)}</div>`
+        return u?`<div role="button" tabindex="0" class="cell tall" data-ct="${esc(t)}" data-ctipo="${tipo}"><img src="${esc(u)}" alt="${esc(nome)} · ${esc(t)}"><span class="bd">${esc(t)}</span>${delB("comp",r.id)}${rotB("comp",r.id)}${fnTag(r)}</div>`
           :`<div class="cell tall" style="cursor:default"><span class="nf">${esc(t)} · ${nome.toLowerCase()}: sem foto</span></div>`}).join("");
     for(const[k,d]of[["_A","Maxcel"],["_B","Controle"]]){const el=$(pre+k);if(!el.options.length){setSel(el,opts(TR.map(t=>({v:t,t}))));el.value=d}}
     const A=$(pre+"_A").value,B=$(pre+"_B").value,nf=t=>`<div class="nfc">${esc(t)}: sem foto</div>`;

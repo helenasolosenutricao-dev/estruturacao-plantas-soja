@@ -148,3 +148,4 @@ button.del.sure,.mini.danger.sure{background:#c0392b!important;color:#fff!import
 .cmp.tallcmp{aspect-ratio:3/4;max-width:640px;background:#1f2b23}.cmp.tallcmp .ly>*{object-fit:contain}
 .cmp .nfc{display:grid;place-items:center;height:100%;color:#fff;font-size:14px}
 .cell.tall[data-ct]{aspect-ratio:3/4;min-height:0}
+.cell .rot{position:absolute;top:48px;right:8px;min-height:32px;padding:0 10px;border:0;border-radius:6px;background:#000b;color:#fff;font:600 13px Barlow,system-ui,sans-serif;cursor:pointer;opacity:.85;z-index:2}.cell .rot:hover,.cell .rot:focus-visible{opacity:1}.cell .rot:disabled{opacity:.6;cursor:wait}
