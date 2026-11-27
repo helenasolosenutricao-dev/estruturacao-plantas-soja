@@ -217,8 +217,8 @@ $("uFile").addEventListener("change",async e=>{const lim5=single()?1:NPT*NFT,fil
   if(e.target.files.length>lim5)toast(single()?"Aqui só a primeira foto é usada.":`Só as ${NPT*NFT} primeiras fotos foram usadas.`,1);
   SAMP=[];$("samp").innerHTML="";
   for(const[i,f]of files.entries()){let img;try{img=await loadImg(f)}catch{toast(`Não consegui abrir ${f.name}.`,1);continue}
-    const mP=f.name.match(/(?:^|[^a-z])(?:p|ponto)[\s_.-]*0?([1-9])/i),mF=f.name.match(/(?:^|[^a-z])(?:f|foto)[\s_.-]*0?([1-9])/i),dP=mP?+mP[1]:Math.floor(i/NFT)+1,dF=mF?+mF[1]:i%NFT+1;
-    const el=document.createElement("div");el.className="smp";el.innerHTML=`<div class="two"><canvas></canvas><canvas></canvas></div><div class="cap"><span class="pf"${single()?' hidden':''}><label>Ponto <select>${[1,2,3,4,5].map(n=>`<option${n===dP?" selected":""}>${n}</option>`).join("")}</select></label><label>Foto <select class="fsel">${[1,2,3,4,5].map(n=>`<option${n===dF?" selected":""}>${n}</option>`).join("")}</select></label></span><b>–</b></div><div class="cap" style="padding-top:0"><small>${esc(f.name)}</small></div>`;
+    const mP=f.name.match(/(?:^|[^a-z])(?:p|ponto)[\s_.-]*0?([1-9])/i),mF=f.name.match(/(?:^|[^a-z])(?:f|foto)[\s_.-]*0?([1-9])/i),dP=mP&&+mP[1]<=NPT?+mP[1]:Math.floor(i/NFT)%NPT+1,dF=mF&&+mF[1]<=NFT?+mF[1]:i%NFT+1;
+    const el=document.createElement("div");el.className="smp";el.innerHTML=`<div class="two"><canvas></canvas><canvas></canvas></div><div class="cap"><span class="pf"${single()?' hidden':''}><label>Ponto <select>${[1,2,3].map(n=>`<option${n===dP?" selected":""}>${n}</option>`).join("")}</select></label><label>Foto <select class="fsel">${[1,2,3].map(n=>`<option${n===dF?" selected":""}>${n}</option>`).join("")}</select></label></span><b>–</b></div><div class="cap" style="padding-top:0"><small>${esc(f.name)}</small></div>`;
     const[co,cn]=el.querySelectorAll("canvas");$("samp").append(el);SAMP.push({file:f,img,el,co,cn,sel:el.querySelector("select"),fsel:el.querySelector(".fsel")})}
   $("anal").hidden=!SAMP.length;analisarTodas()});
 $("lim").addEventListener("input",analisarTodas);
@@ -285,9 +285,9 @@ function renderFotos(){
   const all=GC.filter(r=>r.fazenda_id===$("cF").value&&r.estadio===$("cE").value),ms=st(all.map(r=>r.cobertura_pct));
   $("geral").hidden=!G;if(G)$("geral").innerHTML=`<div class="gcap"><h3>Foto geral · todas as parcelas</h3>${delB("geral",G.id,1)}<span>cobertura na foto geral <b>${fmt(G.cobertura_pct)}%</b></span>${ms.n?`<span>média das amostras de todos os tratamentos <b>${fmt(ms.m)}%</b></span>`:""}</div>
     ${gu?`<div class="gimg" data-geral="1"><img src="${esc(gu)}" alt="Foto geral"></div>`:""}`;$("bigGrid").style.setProperty("--n",Math.max(ts.length,1));
-  const gcs=GC.filter(r=>r.fazenda_id===$("cF").value&&r.estadio===$("cE").value),nA=Math.max(NPT,...gcs.map(r=>r.amostra||1)),nFo=Math.max(1,...gcs.map(r=>r.foto||1));
+  const gcs=GC.filter(r=>r.fazenda_id===$("cF").value&&r.estadio===$("cE").value),nA=NPT,nFo=Math.min(NFT,Math.max(1,...gcs.map(r=>r.foto||1)));
   let h=ts.map(t=>{const S=st(gcRows(t).map(r=>r.cobertura_pct));return`<div class="hd" style="background:${COL[t]}"><span>${esc(t)}</span><b>${isNaN(S.m)?"–":fmt(S.m)+"%"}</b><span>${S.n?`grau de cover · ${S.n} foto(s)${S.n>1?` · ± ${fmt(S.sd)}`:""}`:"sem fotos"}</span>${canUp()?`<span class="adds"><button type="button" class="add" data-add="am" data-t="${esc(t)}">+ 9 fotos Ground Cover</button><button type="button" class="add" data-add="plantas" data-t="${esc(t)}">+ Plantas inteiras</button></span>`:""}</div>`}).join("");
-  const pfs=PF.filter(r=>r.fazenda_id===$("cF").value&&r.estadio===$("cE").value),nP=pfs.length?Math.max(NPT,...pfs.map(r=>r.ponto||1)):0,nPF=Math.max(1,...pfs.map(r=>r.foto||1));
+  const pfs=PF.filter(r=>r.fazenda_id===$("cF").value&&r.estadio===$("cE").value),nP=pfs.length?NPT:0,nPF=Math.min(NFT,Math.max(1,...pfs.map(r=>r.foto||1)));
   const fn=r=>r&&r.arquivo?`<span class="fn" title="${esc(r.arquivo)}">${esc(r.arquivo)}</span>`:"";
   if(nP)h+=`<div class="sec">Plantas inteiras</div>`;
   for(let a=1;a<=nP;a++)for(let fo=1;fo<=nPF;fo++)h+=ts.map(t=>{const pf=pfs.find(r=>r.tratamento===t&&(r.ponto||1)===a&&(r.foto||1)===fo),u=pf&&URL_[pf.foto_path];
