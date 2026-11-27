@@ -90,6 +90,17 @@ function fillSelects(){
 
 /* ====================== painel ====================== */
 let charts={};
+const HIDE=new Set(),TRV=()=>TR.filter(t=>!HIDE.has(t));
+const legH=order=>order.map(t=>`<button type="button" class="lg${HIDE.has(t)?" off":""}" data-t="${esc(t)}" aria-pressed="${!HIDE.has(t)}" title="Clique para ${HIDE.has(t)?"mostrar":"ocultar"} ${esc(t)}"><i style="background:${COL[t]}"></i>${esc(t)}</button>`).join("");
+function togTr(t){if(HIDE.has(t))HIDE.delete(t);else if(TRV().length>1)HIDE.add(t);else return toast("Deixe pelo menos um tratamento visível.",1);renderPainel()}
+/* rótulo de dados: valor em cima de cada barra (acima da barra de erro) */
+const valPlug={id:"val",afterDatasetsDraw(c){const y=c.scales.y,x=c.ctx;x.save();x.fillStyle=getComputedStyle(document.body).color;x.textAlign="center";x.textBaseline="bottom";
+  c.data.datasets.forEach((ds,di)=>{if((ds.type||c.config.type)!=="bar"||!c.isDatasetVisible(di))return;const m=c.getDatasetMeta(di),bw=m.data[0]?.width||30;x.font=`600 ${bw<22?10:bw<40?11:13}px Barlow, system-ui, sans-serif`;
+    const inside=c.data.datasets.some(d=>d.type==="line");
+    m.data.forEach((b,i)=>{const v=ds.data[i];if(v==null)return;const t=fmt(v,ds.dec??1);
+      if(inside&&Math.abs(b.base-b.y)>30){x.save();x.textBaseline="top";x.font=`700 ${bw<40?12:15}px Barlow, system-ui, sans-serif`;const tw=x.measureText(t).width+12;
+        x.fillStyle="#fffffff0";x.beginPath();x.roundRect(b.x-tw/2,b.y+(b.base-b.y)*0.42,tw,22,6);x.fill();x.fillStyle="#16231a";x.fillText(t,b.x,b.y+(b.base-b.y)*0.42+4);x.restore();return}
+      const top=v+(ds.sd&&ds.sd[i]?ds.sd[i]:0);x.fillText(t,b.x,Math.max(c.chartArea.top+12,y.getPixelForValue(top)-4))})});x.restore()}};
 const errPlug={id:"err",afterDatasetsDraw(c){const y=c.scales.y,x=c.ctx;x.save();x.strokeStyle=getComputedStyle(document.body).color;x.lineWidth=1.5;
   c.data.datasets.forEach((ds,di)=>{if(!ds.sd||!c.isDatasetVisible(di))return;const m=c.getDatasetMeta(di),w=Math.min(6,(m.data[0]?.width||12)/3);
     m.data.forEach((b,i)=>{const v=ds.data[i];if(v==null||!ds.sd[i])return;const t=y.getPixelForValue(v+ds.sd[i]),bo=y.getPixelForValue(v-ds.sd[i]);
@@ -98,6 +109,7 @@ function mk(id,cfg){charts[id]?.destroy();const ink=getComputedStyle(document.bo
   Chart.defaults.color=ink;Chart.defaults.font.family="Barlow, system-ui, sans-serif";Chart.defaults.font.size=13;
   for(const s of Object.values(cfg.options.scales||{})){s.grid={...(s.grid||{}),display:false};s.border={display:true,color:ink}}
   for(const d of cfg.data.datasets||[])if((d.type||cfg.type)==="bar"){d.borderColor="#000";d.borderWidth=1.5;d.borderSkipped=false}
+  if(cfg.type==="bar"){cfg.plugins=[...(cfg.plugins||[]),valPlug];const yy=cfg.options.scales?.y;if(yy&&yy.max==null)yy.grace="12%";cfg.options.layout={...(cfg.options.layout||{}),padding:{top:16,...(cfg.options.layout?.padding||{})}}}
   charts[id]=new Chart($(id),cfg)}
 let SELP=new Set();
 const filtP=a=>{const F=$("sF").value;return a.filter(r=>(!SELP.size||SELP.has(r.produtor_id))&&(!F||r.fazenda_id===F))};
@@ -126,11 +138,11 @@ function renderPainel(){
   $("kpis").innerHTML=K.map(([n,a,k,u,d])=>{let m=meanT(a,"Maxcel",k),c=meanT(a,"Controle",k),x=dlt(a,"Maxcel",k);if(k==="pop_ha"){m/=1000;c/=1000}
     return`<div class="k"><div class="l">${n} · Maxcel · ${esc(E)}</div><div class="v">${fmt(m,d)} <span style="font-size:18px">${u}</span></div>
     <div class="d ${cls(x)}">${pct(x)} vs Controle</div><div class="l">Controle: ${fmt(c,d)} ${u}</div></div>`}).join("");
-  $("leg1").innerHTML=desc($("plCmp").value?[$("plCmp").value,"Controle"]:TR,t=>meanT(pe,t,"altura_cm")).map(t=>`<span><i style="background:${COL[t]}"></i>${t}</span>`).join("");
+  $("leg1").innerHTML=legH(desc($("plCmp").value?[$("plCmp").value,"Controle"]:TR,t=>meanT(pe,t,"altura_cm")));
   /* altura por planta */
   $("plT").textContent=`Altura por planta em ${E}`;
   {const v=$("plCmp").value;$("plCmp").innerHTML=`<option value="">Todos os produtos</option>`+TR.filter(t=>t!=="Controle").map(t=>`<option${t===v?" selected":""}>${esc(t)}</option>`).join("")}
-  const trH=$("plCmp").value?[$("plCmp").value,"Controle"]:TR;
+  const trH=($("plCmp").value?[$("plCmp").value,"Controle"]:TR).filter(t=>!HIDE.has(t));
   const oH=desc(trH,t=>st(pe.filter(r=>r.tratamento===t).map(r=>r.altura_cm)).m),sts=oH.map(t=>st(pe.filter(r=>r.tratamento===t).map(r=>r.altura_cm)));
   const pts=[];const byF=by(pe,r=>r.fazenda_id+"|"+r.ponto+"|"+r.planta);for(const[k,a]of Object.entries(byF))pts.push({type:"line",showLine:false,label:"Planta",pointRadius:4,pointBackgroundColor:"#16231acc",pointBorderColor:"#fff",
     data:oH.map(t=>a.find(r=>r.tratamento===t)?.altura_cm??null)});
@@ -141,7 +153,7 @@ function renderPainel(){
   renderPF(E);
   /* grau de cover por amostra */
   $("gcbT").textContent=`Grau de cover em ${E}`;
-  const oG=desc(TR,t=>meanT(ge,t,"cobertura_pct")),gs=oG.map(t=>st(ge.filter(r=>r.tratamento===t).map(r=>r.cobertura_pct)));
+  $("legGC").innerHTML=legH(desc(TR,t=>meanT(ge,t,"cobertura_pct")));const oG=desc(TRV(),t=>meanT(ge,t,"cobertura_pct")),gs=oG.map(t=>st(ge.filter(r=>r.tratamento===t).map(r=>r.cobertura_pct)));
   const gpts=Object.values(by(ge,r=>r.fazenda_id+"|"+(r.amostra||1)+"|"+(r.foto||1))).map(a=>({type:"line",showLine:false,label:"Foto",pointRadius:4,pointBackgroundColor:"#16231acc",pointBorderColor:"#fff",order:1,
     data:oG.map(t=>a.find(r=>r.tratamento===t)?.cobertura_pct??null)}));
   mk("cGCb",{type:"bar",plugins:[errPlug],data:{labels:oG,datasets:[{data:gs.map(s=>isNaN(s.m)?null:+s.m.toFixed(1)),sd:gs.map(s=>s.sd),backgroundColor:oG.map(t=>COL[t]+"cc"),borderRadius:6,order:2},...gpts]},
@@ -151,8 +163,8 @@ function renderPainel(){
   renderLoc(pe,ge,E);
   /* séries */
   const line=(id,rows,k,unit,f=1)=>{const S=series(rows,k);mk(id,{type:"line",data:{labels:S.ss.map(e=>isNaN(S.daeOf[e])?e:`${e} · ${fmt(S.daeOf[e],0)} DAE`),
-    datasets:TR.map(t=>({label:t,data:S.val(t).map(v=>v==null?null:v/f),borderColor:COL[t],backgroundColor:COL[t],borderWidth:t==="Maxcel"?3.5:2,pointRadius:4,tension:.3,spanGaps:true}))},
-    options:{maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{boxWidth:12}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${fmt(c.raw,f>1?0:1)} ${unit}`}}},scales:{x:{},y:{beginAtZero:id==="cPop",title:{display:true,text:unit}}}}});return S};
+    datasets:TR.map(t=>({label:t,hidden:HIDE.has(t),data:S.val(t).map(v=>v==null?null:v/f),borderColor:COL[t],backgroundColor:COL[t],borderWidth:t==="Maxcel"?3.5:2,pointRadius:4,tension:.3,spanGaps:true}))},
+    plugins:[lineLab(f>1?0:1)],options:{maintainAspectRatio:false,layout:{padding:{top:14}},plugins:{legend:{position:"bottom",labels:{boxWidth:12},onClick:(e,it)=>togTr(it.text)},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${fmt(c.raw,f>1?0:1)} ${unit}`}}},scales:{x:{},y:{beginAtZero:id==="cPop",title:{display:true,text:unit}}}}});return S};
   line("cGC",gc,"cobertura_pct","% cobertura");
   const G=line("cGrow",pl,"altura_cm","cm");
   const hasEsp=pl.some(r=>r.pop_ha);$("popH").textContent=hasEsp?"Plantas por hectare (estande × espaçamento da fazenda)":"Plantas por metro de linha — cadastre o espaçamento da fazenda para ver plantas/ha";
@@ -193,31 +205,46 @@ function renderPainel(){
   if(cvs.length){const u=cvs.reduce((a,b)=>b[1]<a[1]?b:a);ins.push(`<b>Uniformidade</b><br>Plantas mais uniformes em ${u[0]} (CV ${fmt(u[1])}% na altura).`)}
   $("ins").innerHTML=ins.map(i=>`<li>${i}</li>`).join("")||"<li>Sem dados suficientes neste estádio.</li>";
 }
+/* rótulo nos pontos das linhas */
+const lineLab=dec=>({id:"ll",afterDatasetsDraw(c){const x=c.ctx;x.save();x.textAlign="center";x.textBaseline="bottom";x.font="600 11px Barlow, system-ui, sans-serif";
+  const L=[];c.data.datasets.forEach((ds,di)=>{if(!c.isDatasetVisible(di))return;c.getDatasetMeta(di).data.forEach((p,i)=>{const v=ds.data[i];if(v!=null)L.push({i,x:p.x,y:p.y-7,t:fmt(v,dec),col:ds.borderColor})})});
+  for(const g of Object.values(by(L,l=>l.i))){g.sort((a,b)=>a.y-b.y);for(let k=1;k<g.length;k++)if(g[k].y-g[k-1].y<13)g[k].y=g[k-1].y+13}
+  for(const l of L){x.strokeStyle="#fff";x.lineWidth=3;x.strokeText(l.t,l.x,l.y);x.fillStyle=l.col;x.fillText(l.t,l.x,l.y)}x.restore()}});
 /* altura por produto · fazenda · produtor (todos os produtores, ignora o filtro de produtor) */
 function renderPF(E){
-  const rows=PL.filter(r=>r.estadio===E&&r.altura_cm!=null),g=by(rows,r=>r.tratamento+"|"+r.fazenda_id);
-  const it=Object.values(g).map(a=>{const f=fazById(a[0].fazenda_id),S=st(a.map(r=>r.altura_cm));return{t:a[0].tratamento,fz:f?.nome||"?",pr:prodById(f?.produtor_id)?.nome||"",S}}).filter(x=>!isNaN(x.S.m)).sort((a,b)=>b.S.m-a.S.m);
+  const rows=PL.filter(r=>r.estadio===E&&r.altura_cm!=null&&!HIDE.has(r.tratamento)),byFz=by(rows,r=>r.fazenda_id);
+  const grp=Object.entries(byFz).map(([fid,a])=>{const f=fazById(fid),its=Object.values(by(a,r=>r.tratamento)).map(b=>({t:b[0].tratamento,S:st(b.map(r=>r.altura_cm))})).filter(x=>!isNaN(x.S.m)).sort((p,q)=>q.S.m-p.S.m);
+    return{fz:f?.nome||"?",pr:prodById(f?.produtor_id)?.nome||"",m:st(a.map(r=>r.altura_cm)).m,its}}).filter(g=>g.its.length).sort((p,q)=>q.m-p.m);
+  const it=[],G=[];for(const g of grp){G.push({s:it.length,e:it.length+g.its.length-1,fz:g.fz,pr:g.pr});for(const x of g.its)it.push({...x,fz:g.fz,pr:g.pr})}
   $("pfT").textContent=`Altura por produto, fazenda e produtor · ${E}`;
-  $("leg3").innerHTML=TR.map(t=>`<span><i style="background:${COL[t]}"></i>${t}</span>`).join("");
-  $("pfFig").style.minWidth=Math.max(0,it.length*70)+"px";
-  mk("cPF",{type:"bar",plugins:[errPlug],data:{labels:it.map(x=>[x.t,x.fz,x.pr]),datasets:[{data:it.map(x=>+x.S.m.toFixed(1)),sd:it.map(x=>x.S.sd),backgroundColor:it.map(x=>COL[x.t]+"cc"),borderRadius:6}]},
-    options:{maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{title:c=>it[c[0].dataIndex].t+" · "+it[c[0].dataIndex].fz+" · "+it[c[0].dataIndex].pr,label:c=>`média ${fmt(c.raw)} ± ${fmt(it[c.dataIndex].S.sd)} cm (n=${it[c.dataIndex].S.n})`}}},
+  $("leg3").innerHTML=legH(TR);
+  $("pfFig").style.minWidth=Math.max(0,it.length*62+G.length*16)+"px";
+  /* faixas alternadas, linha separando fazendas e nome da fazenda/produtor embaixo */
+  const grpPlug={id:"grp",beforeDatasetsDraw(c){const x=c.ctx,ca=c.chartArea,m=c.getDatasetMeta(0).data;if(!m.length)return;const ed=i=>i<0?ca.left:i>=m.length?ca.right:(m[i-1].x+m[i].x)/2;x.save();
+      G.forEach((g,k)=>{if(k%2)return;const l=g.s===0?ca.left:ed(g.s),r=g.e===m.length-1?ca.right:ed(g.e+1);x.fillStyle="rgba(22,35,26,.045)";x.fillRect(l,ca.top,r-l,ca.bottom-ca.top)});x.restore()},
+    afterDraw(c){const x=c.ctx,ca=c.chartArea,m=c.getDatasetMeta(0).data;if(!m.length)return;const ink=getComputedStyle(document.body).color,xs=c.scales.x;x.save();
+      for(const g of G.slice(1)){const px=(m[g.s-1].x+m[g.s].x)/2;x.strokeStyle=ink;x.lineWidth=1.2;x.setLineDash([5,4]);x.beginPath();x.moveTo(px,ca.top);x.lineTo(px,xs.bottom+34);x.stroke()}
+      x.setLineDash([]);x.fillStyle=ink;x.textAlign="center";x.textBaseline="top";
+      for(const g of G){const cx=(m[g.s].x+m[g.e].x)/2,wd=Math.max(60,m[g.e].x-m[g.s].x+50);x.font="700 12px Barlow, system-ui, sans-serif";x.fillText(fitT(x,g.fz,wd),cx,xs.bottom+4);x.font="400 11px Barlow, system-ui, sans-serif";x.fillText(fitT(x,g.pr,wd),cx,xs.bottom+19)}x.restore()}};
+  mk("cPF",{type:"bar",plugins:[errPlug,grpPlug],data:{labels:it.map(x=>x.t),datasets:[{data:it.map(x=>+x.S.m.toFixed(1)),sd:it.map(x=>x.S.sd),backgroundColor:it.map(x=>COL[x.t]+"cc"),borderRadius:6,maxBarThickness:56}]},
+    options:{maintainAspectRatio:false,layout:{padding:{bottom:36}},plugins:{legend:{display:false},tooltip:{callbacks:{title:c=>it[c[0].dataIndex].t+" · "+it[c[0].dataIndex].fz+" · "+it[c[0].dataIndex].pr,label:c=>`média ${fmt(c.raw)} ± ${fmt(it[c.dataIndex].S.sd)} cm (n=${it[c.dataIndex].S.n})`}}},
       scales:{x:{ticks:{autoSkip:false,maxRotation:0,font:{size:11}}},y:{beginAtZero:true,title:{display:true,text:"cm"}}}}})}
+const fitT=(x,t,w)=>{if(x.measureText(t).width<=w)return t;while(t.length>3&&x.measureText(t+"…").width>w)t=t.slice(0,-1);return t+"…"};
 function renderLoc(pe,ge,E){
   const k=$("locA").value,isGC=k==="cobertura_pct",rows=isGC?ge:pe,f=k==="pop_ha"?1000:1,un={cobertura_pct:"%",altura_cm:"cm",estande_pl_m:"pl/m",pop_ha:"mil pl/ha"}[k];
   $("locT").textContent=`Comparação por local · ${$("locA").selectedOptions[0].text.replace(/ \(.*\)/,"")} · ${E}`;
   const S=(a,t)=>st(a.filter(r=>r.tratamento===t).map(r=>r[k]==null?null:r[k]/f));
   const fz=desc(ordFaz([...new Set(rows.map(r=>r.fazenda_id))]),id=>st(rows.filter(r=>r.fazenda_id===id).map(r=>r[k])).m),labels=[...fz.map(id=>fazById(id)?.nome||"?"),"Média geral"];
   const oL=desc(TR,t=>S(rows,t).m);
-  const ds=oL.map(t=>{const v=[...fz.map(id=>S(rows.filter(r=>r.fazenda_id===id),t)),S(rows,t)];
+  const dsAll=oL.map(t=>{const v=[...fz.map(id=>S(rows.filter(r=>r.fazenda_id===id),t)),S(rows,t)];
     return{label:t,data:v.map(s=>isNaN(s.m)?null:+s.m.toFixed(2)),sd:v.map(s=>s.sd),nn:v.map(s=>s.n),backgroundColor:COL[t]+"cc",borderRadius:4}});
-  $("leg2").innerHTML=oL.map(t=>`<span><i style="background:${COL[t]}"></i>${t}</span>`).join("");
+  const ds=dsAll.filter(d=>!HIDE.has(d.label));$("leg2").innerHTML=legH(oL);
   mk("cLoc",{type:"bar",plugins:[errPlug],data:{labels,datasets:ds},options:{maintainAspectRatio:false,plugins:{legend:{display:false},
     tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${fmt(c.raw,k==="pop_ha"?0:1)} ${un} ± ${fmt(c.dataset.sd[c.dataIndex],1)} (n=${c.dataset.nn[c.dataIndex]})`}}},
     scales:{x:{grid:{display:false}},y:{beginAtZero:true,...(isGC?{max:100}:{}),title:{display:true,text:un}}}}});
   $("tabLoc").innerHTML=`<tr><th>Local</th>${oL.map(t=>`<th><span class="dot" style="background:${COL[t]}"></span>${t}</th>`).join("")}<th>Maxcel vs Ctrl</th></tr>`+
-    labels.map((l,i)=>{const c=ds[oL.indexOf("Controle")].data[i],m=ds[oL.indexOf("Maxcel")].data[i],x=c?(m/c-1)*100:NaN;
-      return`<tr><td>${i===labels.length-1?"<b>Média geral</b>":esc(l)}</td>${ds.map(d=>`<td>${fmt(d.data[i],k==="pop_ha"?0:1)}${d.nn[i]>1?` ± ${fmt(d.sd[i],1)}`:""}</td>`).join("")}<td class="${cls(x)}">${pct(x)}</td></tr>`}).join("");
+    labels.map((l,i)=>{const c=dsAll[oL.indexOf("Controle")].data[i],m=dsAll[oL.indexOf("Maxcel")].data[i],x=c?(m/c-1)*100:NaN;
+      return`<tr><td>${i===labels.length-1?"<b>Média geral</b>":esc(l)}</td>${dsAll.map(d=>`<td>${fmt(d.data[i],k==="pop_ha"?0:1)}${d.nn[i]>1?` ± ${fmt(d.sd[i],1)}`:""}</td>`).join("")}<td class="${cls(x)}">${pct(x)}</td></tr>`}).join("");
 }
 const ordFaz=ids=>ids.sort((a,b)=>{const fa=fazById(a),fb=fazById(b);return((prodById(fa?.produtor_id)?.nome||"")+(fa?.nome||"")).localeCompare((prodById(fb?.produtor_id)?.nome||"")+(fb?.nome||""))});
 
@@ -615,6 +642,7 @@ SB?.auth.onAuthStateChange(ev=>{if(ev==="SIGNED_IN"&&$("app").hidden&&MODE!=="de
 $("sP").addEventListener("change",e=>{const v=e.target.value;if(!v)SELP.clear();else e.target.checked?SELP.add(v):SELP.delete(v);if(SELP.size===PROD.length&&PROD.length>1)SELP.clear();
   fillProd();setSel($("sF"),opts(fazOptsM(),"Todas"));renderPainel()});
 $("plCmp").addEventListener("change",renderPainel);
+document.addEventListener("click",e=>{const b=e.target.closest(".legend [data-t]");if(b)togTr(b.dataset.t)});
 $("sPb").addEventListener("click",e=>{e.stopPropagation();const o=$("sP").hidden;$("sP").hidden=!o;$("sPb").setAttribute("aria-expanded",String(o))});
 document.addEventListener("click",e=>{if(!$("sP").hidden&&!e.target.closest("#sPw")){$("sP").hidden=true;$("sPb").setAttribute("aria-expanded","false")}});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("sP").hidden){$("sP").hidden=true;$("sPb").focus()}});

@@ -6,7 +6,7 @@
 <title>Estruturação de Plantas · Soja</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=16">
+<link rel="stylesheet" href="style.css?v=17">
 </head>
 <body>
 <header class="band"><div class="wrap">
@@ -62,10 +62,10 @@
           <label class="f" style="max-width:320px">Comparar com o Controle<select id="plCmp"><option value="">Todos os produtos</option></select></label>
           <div class="legend" id="leg1"></div><div class="fig"><canvas id="cPl"></canvas></div></div>
         <div class="card"><h2 id="gcbT">Grau de cover</h2><p class="h">Barras = média dos pontos (falso NDVI) ± desvio padrão · marcadores = cada ponto</p>
-          <div class="fig"><canvas id="cGCb"></canvas></div></div>
+          <div class="legend" id="legGC"></div><div class="fig"><canvas id="cGCb"></canvas></div></div>
       </div>
       <div class="card sect"><h2 id="pfT">Altura por produto, fazenda e produtor</h2>
-        <p class="h">Todos os produtores e fazendas no estádio selecionado, do maior para o menor · barras = média ± desvio padrão das plantas</p>
+        <p class="h">Todos os produtores no estádio selecionado · fazendas separadas pela linha tracejada, da maior para a menor altura média; dentro de cada fazenda, tratamentos do maior para o menor · barras = média ± desvio padrão das plantas</p>
         <div class="legend" id="leg3"></div><div class="scroll"><div class="fig" id="pfFig" style="height:420px"><canvas id="cPF"></canvas></div></div></div>
       <div class="card sect"><h2 id="locT">Comparação por local</h2>
         <p class="h">Média ± desvio padrão de cada tratamento em cada fazenda no estádio selecionado. A última coluna é a média de todos os locais.</p>
@@ -268,6 +268,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="app.js?v=16"></script>
+<script src="app.js?v=17"></script>
 </body>
 </html>
