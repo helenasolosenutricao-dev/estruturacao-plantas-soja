@@ -6,7 +6,7 @@
 <title>Estruturação de Plantas · Soja</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=15">
+<link rel="stylesheet" href="style.css?v=16">
 </head>
 <body>
 <header class="band"><div class="wrap">
@@ -47,7 +47,7 @@
 <!-- ===================== PAINEL ===================== -->
 <section id="tab-painel" class="tab">
   <div class="filters"><div class="wrap">
-    <label class="f">Produtor<select id="sP"></select></label>
+    <div class="f msel" id="sPw"><span>Produtor</span><button type="button" class="mselb" id="sPb" aria-haspopup="true" aria-expanded="false">Todos</button><div class="mselp" id="sP" hidden></div></div>
     <label class="f">Fazenda<select id="sF"></select></label>
     <label class="f">Estádio da avaliação<select id="sE"></select></label>
   </div></div>
@@ -59,10 +59,14 @@
 
       <div class="grid2 sect">
         <div class="card"><h2 id="plT">Altura por planta</h2><p class="h">Barras = média do tratamento ± desvio padrão · pontos = cada planta avaliada</p>
+          <label class="f" style="max-width:320px">Comparar com o Controle<select id="plCmp"><option value="">Todos os produtos</option></select></label>
           <div class="legend" id="leg1"></div><div class="fig"><canvas id="cPl"></canvas></div></div>
         <div class="card"><h2 id="gcbT">Grau de cover</h2><p class="h">Barras = média dos pontos (falso NDVI) ± desvio padrão · marcadores = cada ponto</p>
           <div class="fig"><canvas id="cGCb"></canvas></div></div>
       </div>
+      <div class="card sect"><h2 id="pfT">Altura por produto, fazenda e produtor</h2>
+        <p class="h">Todos os produtores e fazendas no estádio selecionado, do maior para o menor · barras = média ± desvio padrão das plantas</p>
+        <div class="legend" id="leg3"></div><div class="scroll"><div class="fig" id="pfFig" style="height:420px"><canvas id="cPF"></canvas></div></div></div>
       <div class="card sect"><h2 id="locT">Comparação por local</h2>
         <p class="h">Média ± desvio padrão de cada tratamento em cada fazenda no estádio selecionado. A última coluna é a média de todos os locais.</p>
         <div class="formgrid" style="max-width:520px"><label class="f">Atributo<select id="locA">
@@ -97,6 +101,7 @@
   <div class="card" id="upCard">
     <h2>Enviar fotos · Ground Cover por ponto e plantas inteiras</h2>
     <p class="h">Ground Cover: selecione de uma vez as até 9 fotos do tratamento (3 fotos em cada um dos pontos 1, 2 e 3). Em ordem de nome, as fotos 1–3 vão para o ponto 1, 4–6 para o ponto 2 e 7–9 para o ponto 3; confira e ajuste o ponto e o nº da foto embaixo de cada uma. Cada foto passa pelo falso NDVI e o grau de cover do tratamento é a média das fotos. Tire a foto de cima (zenital), sempre na mesma altura. Plantas inteiras: até 3 fotos por ponto, com as 3 plantas arrancadas sobre o pano e a trena, que entra na comparação lado a lado.</p>
+    <p class="h"><b>Somente soja:</b> o sistema encontra as linhas de plantio na própria foto (linhas brancas tracejadas no falso NDVI) e conta só o verde ligado a elas; plantas daninhas soltas na entrelinha aparecem em <b style="color:#c22fb8">rosa</b> e ficam fora do grau de cover. <button class="btn ghost mini" type="button" id="recalc">Recalcular fotos já enviadas</button></p>
     <div class="formgrid">
       <label class="f">Produtor<select id="uP"></select></label>
       <label class="f">Fazenda<select id="uF"></select></label>
@@ -110,6 +115,8 @@
       <div class="res">
         <div><span class="big" id="covOut">–</span><span>grau de cover médio</span><small id="covSd"></small></div>
         <label class="f grow">Sensibilidade do verde (limiar ExG <b id="limOut">20</b>)<input type="range" id="lim" min="0" max="60" value="20"></label>
+        <div class="f soyw"><label class="chk"><input type="checkbox" id="soyOn" checked> Somente soja: excluir plantas daninhas da entrelinha</label>
+          <label>Faixa da linha de soja: <b id="soyBandOut">35</b>% do espaçamento<input type="range" id="soyBand" min="15" max="70" value="35"></label></div>
         <button class="btn gold" type="button" id="saveFoto">Salvar pontos</button>
       </div>
       <div class="samples" id="samp"></div>
@@ -261,6 +268,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="app.js?v=15"></script>
+<script src="app.js?v=16"></script>
 </body>
 </html>

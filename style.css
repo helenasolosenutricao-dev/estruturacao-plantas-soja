@@ -149,3 +149,8 @@ button.del.sure,.mini.danger.sure{background:#c0392b!important;color:#fff!import
 .cmp .nfc{display:grid;place-items:center;height:100%;color:#fff;font-size:14px}
 .cell.tall[data-ct]{aspect-ratio:3/4;min-height:0}
 .cell .rot{position:absolute;top:48px;right:8px;min-height:32px;padding:0 10px;border:0;border-radius:6px;background:#000b;color:#fff;font:600 13px Barlow,system-ui,sans-serif;cursor:pointer;opacity:.85;z-index:2}.cell .rot:hover,.cell .rot:focus-visible{opacity:1}.cell .rot:disabled{opacity:.6;cursor:wait}
+.soyw{display:flex;flex-direction:column;gap:6px;min-width:260px}.soyw .chk{display:flex;gap:6px;align-items:center;font-weight:600}.smp .rw{display:block;color:var(--mut,#667)}
+.msel{position:relative}.mselb{width:100%;min-height:44px;text-align:left;padding:0 36px 0 14px;border:1px solid var(--line);border-radius:8px;background:var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23333' stroke-width='1.6'/%3E%3C/svg%3E") no-repeat right 14px center;color:var(--ink);font:inherit;font-size:16px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mselp{position:absolute;z-index:30;top:100%;left:0;right:0;margin-top:4px;max-height:320px;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px #0002;padding:6px}
+.mselp label{display:flex;gap:8px;align-items:center;padding:8px 10px;border-radius:6px;cursor:pointer;font-size:15px;color:var(--ink)}.mselp label:hover{background:var(--bg)}.mselp label.all{border-bottom:1px solid var(--line);font-weight:600;border-radius:0}
+.msel{display:grid;gap:2px}.msel>span{font-size:13px;color:var(--mut)}

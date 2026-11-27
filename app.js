@@ -78,7 +78,7 @@ const prodOpts=()=>PROD.map(p=>({v:p.id,t:p.nome}));
 const fazOpts=pid=>FAZ.filter(f=>!pid||f.produtor_id===pid).map(f=>({v:f.id,t:pid?f.nome:`${prodById(f.produtor_id)?.nome||""} · ${f.nome}`}));
 const allStages=()=>ordSt([...PL.map(r=>r.estadio),...GC.map(r=>r.estadio)]);
 function fillSelects(){
-  setSel($("sP"),opts(prodOpts(),"Todos"));setSel($("sF"),opts(fazOpts($("sP").value),"Todas"));
+  fillProd();setSel($("sF"),opts(fazOptsM(),"Todas"));
   const ss=allStages();setSel($("sE"),opts(ss));if(!$("sE").value&&ss.length)$("sE").value=ss.includes("R1")?"R1":ss.at(-1);
   for(const[p,f]of[["uP","uF"],["cP","cF"]]){setSel($(p),opts(prodOpts()));setSel($(f),opts(fazOpts($(p).value)))}
   setSel($("uT"),opts(TR));setSel($("uE"),opts(ORD));if(!$("uE").dataset.init){$("uE").value="V4";$("uE").dataset.init=1}
@@ -99,8 +99,14 @@ function mk(id,cfg){charts[id]?.destroy();const ink=getComputedStyle(document.bo
   for(const s of Object.values(cfg.options.scales||{})){s.grid={...(s.grid||{}),display:false};s.border={display:true,color:ink}}
   for(const d of cfg.data.datasets||[])if((d.type||cfg.type)==="bar"){d.borderColor="#000";d.borderWidth=1.5;d.borderSkipped=false}
   charts[id]=new Chart($(id),cfg)}
-const filtP=a=>{const P=$("sP").value,F=$("sF").value;return a.filter(r=>(!P||r.produtor_id===P)&&(!F||r.fazenda_id===F))};
+let SELP=new Set();
+const filtP=a=>{const F=$("sF").value;return a.filter(r=>(!SELP.size||SELP.has(r.produtor_id))&&(!F||r.fazenda_id===F))};
+const fazOptsM=()=>FAZ.filter(f=>!SELP.size||SELP.has(f.produtor_id)).map(f=>({v:f.id,t:SELP.size===1?f.nome:`${prodById(f.produtor_id)?.nome||""} · ${f.nome}`}));
+function fillProd(){for(const id of[...SELP])if(!prodById(id))SELP.delete(id);
+  $("sP").innerHTML=`<label class="all"><input type="checkbox" value=""${SELP.size?"":" checked"}> Todos os produtores</label>`+PROD.map(p=>`<label><input type="checkbox" value="${esc(p.id)}"${SELP.has(p.id)?" checked":""}> ${esc(p.nome)}</label>`).join("");
+  $("sPb").textContent=!SELP.size?"Todos":SELP.size===1?prodById([...SELP][0])?.nome||"1 produtor":`${SELP.size} produtores`}
 const meanT=(a,t,k)=>st(a.filter(r=>r.tratamento===t).map(r=>r[k])).m;
+const desc=(arr,f)=>arr.map(x=>[x,f(x)]).sort((a,b)=>(isNaN(b[1])?-1e9:b[1])-(isNaN(a[1])?-1e9:a[1])).map(x=>x[0]);
 const dlt=(a,t,k)=>{const c=meanT(a,"Controle",k);return c?(meanT(a,t,k)/c-1)*100:NaN};
 function series(rows,k){/* média por tratamento em cada estádio */
   const ss=ordSt(rows.map(r=>r.estadio)),daeOf={};for(const e of ss)daeOf[e]=st(rows.filter(r=>r.estadio===e).map(r=>r.dae)).m;
@@ -120,21 +126,25 @@ function renderPainel(){
   $("kpis").innerHTML=K.map(([n,a,k,u,d])=>{let m=meanT(a,"Maxcel",k),c=meanT(a,"Controle",k),x=dlt(a,"Maxcel",k);if(k==="pop_ha"){m/=1000;c/=1000}
     return`<div class="k"><div class="l">${n} · Maxcel · ${esc(E)}</div><div class="v">${fmt(m,d)} <span style="font-size:18px">${u}</span></div>
     <div class="d ${cls(x)}">${pct(x)} vs Controle</div><div class="l">Controle: ${fmt(c,d)} ${u}</div></div>`}).join("");
-  $("leg1").innerHTML=TR.map(t=>`<span><i style="background:${COL[t]}"></i>${t}</span>`).join("");
+  $("leg1").innerHTML=desc($("plCmp").value?[$("plCmp").value,"Controle"]:TR,t=>meanT(pe,t,"altura_cm")).map(t=>`<span><i style="background:${COL[t]}"></i>${t}</span>`).join("");
   /* altura por planta */
   $("plT").textContent=`Altura por planta em ${E}`;
-  const sts=TR.map(t=>st(pe.filter(r=>r.tratamento===t).map(r=>r.altura_cm)));
+  {const v=$("plCmp").value;$("plCmp").innerHTML=`<option value="">Todos os produtos</option>`+TR.filter(t=>t!=="Controle").map(t=>`<option${t===v?" selected":""}>${esc(t)}</option>`).join("")}
+  const trH=$("plCmp").value?[$("plCmp").value,"Controle"]:TR;
+  const oH=desc(trH,t=>st(pe.filter(r=>r.tratamento===t).map(r=>r.altura_cm)).m),sts=oH.map(t=>st(pe.filter(r=>r.tratamento===t).map(r=>r.altura_cm)));
   const pts=[];const byF=by(pe,r=>r.fazenda_id+"|"+r.ponto+"|"+r.planta);for(const[k,a]of Object.entries(byF))pts.push({type:"line",showLine:false,label:"Planta",pointRadius:4,pointBackgroundColor:"#16231acc",pointBorderColor:"#fff",
-    data:TR.map(t=>a.find(r=>r.tratamento===t)?.altura_cm??null)});
-  mk("cPl",{type:"bar",plugins:[errPlug],data:{labels:TR,datasets:[{data:sts.map(s=>isNaN(s.m)?null:+s.m.toFixed(1)),sd:sts.map(s=>s.sd),backgroundColor:TR.map(t=>COL[t]+"cc"),borderRadius:6,order:2},...pts.map(p=>({...p,order:1}))]},
+    data:oH.map(t=>a.find(r=>r.tratamento===t)?.altura_cm??null)});
+  mk("cPl",{type:"bar",plugins:[errPlug],data:{labels:oH,datasets:[{data:sts.map(s=>isNaN(s.m)?null:+s.m.toFixed(1)),sd:sts.map(s=>s.sd),backgroundColor:oH.map(t=>COL[t]+"cc"),borderRadius:6,order:2},...pts.map(p=>({...p,order:1}))]},
     options:{maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{filter:i=>i.datasetIndex===0,callbacks:{label:c=>`média ${fmt(c.raw)} ± ${fmt(sts[c.dataIndex].sd)} cm (n=${sts[c.dataIndex].n})`}}},
       scales:{x:{grid:{display:false}},y:{beginAtZero:true,title:{display:true,text:"cm"}}}}});
+  $("plT").textContent=`Altura por planta em ${E}${$("plCmp").value?` · ${$("plCmp").value} vs Controle`:""}`;
+  renderPF(E);
   /* grau de cover por amostra */
   $("gcbT").textContent=`Grau de cover em ${E}`;
-  const gs=TR.map(t=>st(ge.filter(r=>r.tratamento===t).map(r=>r.cobertura_pct)));
+  const oG=desc(TR,t=>meanT(ge,t,"cobertura_pct")),gs=oG.map(t=>st(ge.filter(r=>r.tratamento===t).map(r=>r.cobertura_pct)));
   const gpts=Object.values(by(ge,r=>r.fazenda_id+"|"+(r.amostra||1)+"|"+(r.foto||1))).map(a=>({type:"line",showLine:false,label:"Foto",pointRadius:4,pointBackgroundColor:"#16231acc",pointBorderColor:"#fff",order:1,
-    data:TR.map(t=>a.find(r=>r.tratamento===t)?.cobertura_pct??null)}));
-  mk("cGCb",{type:"bar",plugins:[errPlug],data:{labels:TR,datasets:[{data:gs.map(s=>isNaN(s.m)?null:+s.m.toFixed(1)),sd:gs.map(s=>s.sd),backgroundColor:TR.map(t=>COL[t]+"cc"),borderRadius:6,order:2},...gpts]},
+    data:oG.map(t=>a.find(r=>r.tratamento===t)?.cobertura_pct??null)}));
+  mk("cGCb",{type:"bar",plugins:[errPlug],data:{labels:oG,datasets:[{data:gs.map(s=>isNaN(s.m)?null:+s.m.toFixed(1)),sd:gs.map(s=>s.sd),backgroundColor:oG.map(t=>COL[t]+"cc"),borderRadius:6,order:2},...gpts]},
     options:{maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{filter:i=>i.datasetIndex===0,callbacks:{label:c=>`grau de cover ${fmt(c.raw)}% ± ${fmt(gs[c.dataIndex].sd)} (n=${gs[c.dataIndex].n} fotos)`}}},
       scales:{x:{grid:{display:false}},y:{beginAtZero:true,max:100,title:{display:true,text:"% de fechamento"}}}}});
   /* comparação por local */
@@ -183,19 +193,30 @@ function renderPainel(){
   if(cvs.length){const u=cvs.reduce((a,b)=>b[1]<a[1]?b:a);ins.push(`<b>Uniformidade</b><br>Plantas mais uniformes em ${u[0]} (CV ${fmt(u[1])}% na altura).`)}
   $("ins").innerHTML=ins.map(i=>`<li>${i}</li>`).join("")||"<li>Sem dados suficientes neste estádio.</li>";
 }
+/* altura por produto · fazenda · produtor (todos os produtores, ignora o filtro de produtor) */
+function renderPF(E){
+  const rows=PL.filter(r=>r.estadio===E&&r.altura_cm!=null),g=by(rows,r=>r.tratamento+"|"+r.fazenda_id);
+  const it=Object.values(g).map(a=>{const f=fazById(a[0].fazenda_id),S=st(a.map(r=>r.altura_cm));return{t:a[0].tratamento,fz:f?.nome||"?",pr:prodById(f?.produtor_id)?.nome||"",S}}).filter(x=>!isNaN(x.S.m)).sort((a,b)=>b.S.m-a.S.m);
+  $("pfT").textContent=`Altura por produto, fazenda e produtor · ${E}`;
+  $("leg3").innerHTML=TR.map(t=>`<span><i style="background:${COL[t]}"></i>${t}</span>`).join("");
+  $("pfFig").style.minWidth=Math.max(0,it.length*70)+"px";
+  mk("cPF",{type:"bar",plugins:[errPlug],data:{labels:it.map(x=>[x.t,x.fz,x.pr]),datasets:[{data:it.map(x=>+x.S.m.toFixed(1)),sd:it.map(x=>x.S.sd),backgroundColor:it.map(x=>COL[x.t]+"cc"),borderRadius:6}]},
+    options:{maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{title:c=>it[c[0].dataIndex].t+" · "+it[c[0].dataIndex].fz+" · "+it[c[0].dataIndex].pr,label:c=>`média ${fmt(c.raw)} ± ${fmt(it[c.dataIndex].S.sd)} cm (n=${it[c.dataIndex].S.n})`}}},
+      scales:{x:{ticks:{autoSkip:false,maxRotation:0,font:{size:11}}},y:{beginAtZero:true,title:{display:true,text:"cm"}}}}})}
 function renderLoc(pe,ge,E){
   const k=$("locA").value,isGC=k==="cobertura_pct",rows=isGC?ge:pe,f=k==="pop_ha"?1000:1,un={cobertura_pct:"%",altura_cm:"cm",estande_pl_m:"pl/m",pop_ha:"mil pl/ha"}[k];
   $("locT").textContent=`Comparação por local · ${$("locA").selectedOptions[0].text.replace(/ \(.*\)/,"")} · ${E}`;
-  const fz=ordFaz([...new Set(rows.map(r=>r.fazenda_id))]),labels=[...fz.map(id=>fazById(id)?.nome||"?"),"Média geral"];
   const S=(a,t)=>st(a.filter(r=>r.tratamento===t).map(r=>r[k]==null?null:r[k]/f));
-  const ds=TR.map(t=>{const v=[...fz.map(id=>S(rows.filter(r=>r.fazenda_id===id),t)),S(rows,t)];
+  const fz=desc(ordFaz([...new Set(rows.map(r=>r.fazenda_id))]),id=>st(rows.filter(r=>r.fazenda_id===id).map(r=>r[k])).m),labels=[...fz.map(id=>fazById(id)?.nome||"?"),"Média geral"];
+  const oL=desc(TR,t=>S(rows,t).m);
+  const ds=oL.map(t=>{const v=[...fz.map(id=>S(rows.filter(r=>r.fazenda_id===id),t)),S(rows,t)];
     return{label:t,data:v.map(s=>isNaN(s.m)?null:+s.m.toFixed(2)),sd:v.map(s=>s.sd),nn:v.map(s=>s.n),backgroundColor:COL[t]+"cc",borderRadius:4}});
-  $("leg2").innerHTML=TR.map(t=>`<span><i style="background:${COL[t]}"></i>${t}</span>`).join("");
+  $("leg2").innerHTML=oL.map(t=>`<span><i style="background:${COL[t]}"></i>${t}</span>`).join("");
   mk("cLoc",{type:"bar",plugins:[errPlug],data:{labels,datasets:ds},options:{maintainAspectRatio:false,plugins:{legend:{display:false},
     tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${fmt(c.raw,k==="pop_ha"?0:1)} ${un} ± ${fmt(c.dataset.sd[c.dataIndex],1)} (n=${c.dataset.nn[c.dataIndex]})`}}},
     scales:{x:{grid:{display:false}},y:{beginAtZero:true,...(isGC?{max:100}:{}),title:{display:true,text:un}}}}});
-  $("tabLoc").innerHTML=`<tr><th>Local</th>${TR.map(t=>`<th><span class="dot" style="background:${COL[t]}"></span>${t}</th>`).join("")}<th>Maxcel vs Ctrl</th></tr>`+
-    labels.map((l,i)=>{const c=ds[TR.indexOf("Controle")].data[i],m=ds[TR.indexOf("Maxcel")].data[i],x=c?(m/c-1)*100:NaN;
+  $("tabLoc").innerHTML=`<tr><th>Local</th>${oL.map(t=>`<th><span class="dot" style="background:${COL[t]}"></span>${t}</th>`).join("")}<th>Maxcel vs Ctrl</th></tr>`+
+    labels.map((l,i)=>{const c=ds[oL.indexOf("Controle")].data[i],m=ds[oL.indexOf("Maxcel")].data[i],x=c?(m/c-1)*100:NaN;
       return`<tr><td>${i===labels.length-1?"<b>Média geral</b>":esc(l)}</td>${ds.map(d=>`<td>${fmt(d.data[i],k==="pop_ha"?0:1)}${d.nn[i]>1?` ± ${fmt(d.sd[i],1)}`:""}</td>`).join("")}<td class="${cls(x)}">${pct(x)}</td></tr>`}).join("");
 }
 const ordFaz=ids=>ids.sort((a,b)=>{const fa=fazById(a),fb=fazById(b);return((prodById(fa?.produtor_id)?.nome||"")+(fa?.nome||"")).localeCompare((prodById(fb?.produtor_id)?.nome||"")+(fb?.nome||""))});
@@ -204,15 +225,64 @@ const ordFaz=ids=>ids.sort((a,b)=>{const fa=fazById(a),fb=fazById(b);return((pro
 const RAMP=[[-0.2,[165,0,38]],[0,[244,109,67]],[0.08,[254,224,139]],[0.16,[166,217,106]],[0.3,[26,152,80]],[0.45,[0,104,55]]];
 const rampAt=v=>{if(v<=RAMP[0][0])return RAMP[0][1];for(let i=1;i<RAMP.length;i++)if(v<=RAMP[i][0]){const[a,ca]=RAMP[i-1],[b,cb]=RAMP[i],t=(v-a)/(b-a);return ca.map((x,j)=>x+(cb[j]-x)*t)}return RAMP.at(-1)[1]};
 let SAMP=[];
-function analyze(s,lim){
+/* linhas de soja: detecta orientação e espaçamento das linhas na própria foto e mantém só a vegetação ligada às linhas */
+function detectRows(veg,w,h){
+  const stp=Math.max(1,Math.round(Math.max(w,h)/320)),xs=[],ys=[],vs=[];
+  for(let y=0;y<h;y+=stp)for(let x=0;x<w;x+=stp){xs.push(x);ys.push(y);vs.push(veg[y*w+x])}
+  const n=xs.length;let tv=0;for(const v of vs)tv+=v;const fr=tv/n;if(fr<0.01||fr>0.92)return null;
+  /* perfil da vegetação atravessando as linhas, no ângulo a, só com os pontos cujo índice passa no filtro */
+  const prof=(a,B,keepI)=>{const t=a*Math.PI/180,c=Math.cos(t),sn=Math.sin(t),us=[0,w*c,h*sn,w*c+h*sn],u0=Math.min(...us),nb=Math.ceil((Math.max(...us)-u0)/B)+1,T=new Float64Array(nb),V=new Float64Array(nb);
+    for(let i=0;i<n;i++){if(keepI&&!keepI(i))continue;const b=Math.floor((xs[i]*c+ys[i]*sn-u0)/B);T[b]++;V[b]+=vs[i]}
+    const mx=Math.max(...T),mn=Math.max(2,0.25*mx),p=[];for(let b=0;b<nb;b++)p.push(T[b]>=mn?V[b]/T[b]:NaN);
+    const ok=p.filter(v=>!isNaN(v)),m=ok.length?ok.reduce((x,y)=>x+y,0)/ok.length:0;return{c,sn,u0,B,p:p.map(v=>isNaN(v)?m:v),m,valid:p.map(v=>!isNaN(v))}};
+  const vari=P=>{let vv=0,k=0;P.p.forEach((v,i)=>{if(P.valid[i]){vv+=(v-P.m)**2;k++}});return k?vv/k:0};
+  /* ângulo: maior contraste, medido em faixas ao longo da linha (tolera fotos um pouco inclinadas) */
+  const K=5;let best=null;
+  for(let a=0;a<180;a+=3){const t=a*Math.PI/180,dx=-Math.sin(t),dy=Math.cos(t),vv=xs.map((x,i)=>x*dx+ys[i]*dy),v0=Math.min(...vv),v1=Math.max(...vv);let sc=0;
+    for(let k=0;k<K;k++){const lo=v0+(v1-v0)*k/K,hi=v0+(v1-v0)*(k+1)/K;sc+=vari(prof(a,2*stp,i=>vv[i]>=lo&&vv[i]<hi))}if(!best||sc>best.sc)best={a,sc}}
+  const t=best.a*Math.PI/180,dx=-Math.sin(t),dy=Math.cos(t),vv=xs.map((x,i)=>x*dx+ys[i]*dy),v0=Math.min(...vv),v1=Math.max(...vv);
+  const per=P=>{const N=P.p.length,z=P.p.map(v=>v-P.m),ac=L=>{let s2=0,c2=0;for(let i=0;i+L<N;i++)if(P.valid[i]&&P.valid[i+L]){s2+=z[i]*z[i+L];c2++}return c2>4?s2/c2:0};
+    const a0=ac(0);if(!(a0>0))return null;const Lmin=Math.max(3,Math.round(N*0.06)),Lmax=Math.floor(N*0.55),pk=[];
+    for(let l=Lmin;l<=Lmax;l++){const v=ac(l)/a0;if(v>=ac(l-1)/a0&&v>=ac(l+1)/a0)pk.push([l,v])}
+    const mr=Math.max(0,...pk.map(x=>x[1])),f1=pk.find(x=>x[1]>=0.55*mr);if(!f1||f1[1]<0.1)return null;const L=f1[0];
+    const k=Math.max(1,Math.round(L/6)),sm=z.map((_,i)=>{let s2=0,c2=0;for(let j=i-k;j<=i+k;j++)if(j>=0&&j<N){s2+=z[j];c2++}return s2/c2});
+    let ph=0,bs=-1e9;for(let f=0;f<L;f++){let s2=0,c2=0;for(let i=f;i<N;i+=L){s2+=sm[i];c2++}s2/=c2;if(s2>bs){bs=s2;ph=f}}return{L,ph,r:f1[1],N}};
+  /* em cada faixa: ajusta o ângulo, mede o espaçamento e marca o centro de cada linha (picos do perfil) */
+  const S=[];for(let k=0;k<K;k++){const lo=v0+(v1-v0)*k/K,hi=v0+(v1-v0)*(k+1)/K,inS=i=>vv[i]>=lo&&vv[i]<hi;let ba=best.a,bv=-1;
+    for(let a=best.a-15;a<=best.a+15;a+=3){const x=vari(prof(a,2*stp,inS));if(x>bv){bv=x;ba=a}}
+    const P=prof(ba,stp,inS),q=per(P);S.push({a:ba,c:Math.cos(ba*Math.PI/180),sn:Math.sin(ba*Math.PI/180),u0:P.u0,P,L:q?q.L:0,r:q?q.r:0,lo,hi})}
+  const good=S.filter(x=>x.L);if(good.length<Math.ceil(K/2))return null;
+  const Ls=good.map(x=>x.L).sort((a,b)=>a-b),Lm=Ls[Math.floor(Ls.length/2)];
+  for(const x of S){if(!x.L||x.L>1.6*Lm||x.L<0.6*Lm)x.L=Lm;const p=x.P.p,N=p.length,k=Math.max(1,Math.round(x.L/5)),sm=p.map((_,i)=>{let s2=0,c2=0;for(let j=i-k;j<=i+k;j++)if(j>=0&&j<N){s2+=p[j];c2++}return s2/c2});
+    const mean=sm.reduce((a,b)=>a+b,0)/N,cand=[];for(let i=1;i<N-1;i++)if(sm[i]>=sm[i-1]&&sm[i]>=sm[i+1]&&sm[i]>mean)cand.push(i);
+    cand.sort((a,b)=>sm[b]-sm[a]);const cen=[];for(const i of cand)if(cen.every(j=>Math.abs(j-i)>=0.6*x.L))cen.push(i);x.cen=cen.sort((a,b)=>a-b);x.N=N;delete x.P}
+  const nRows=Math.round(st(S.map(x=>x.cen.length)).m);if(!nRows)return null;
+  return{dx,dy,B:stp,S,v0,v1,K,n:nRows,ang:best.a}}
+function soyKeep(veg,w,h,R,band){
+  const keep=new Uint8Array(w*h);if(!R){keep.set(veg);return keep}
+  const sw=(R.v1-R.v0)/R.K,inB=(x,y)=>{const v=x*R.dx+y*R.dy,k=Math.min(R.K-1,Math.max(0,Math.floor((v-R.v0)/sw))),g=R.S[k],u=(x*g.c+y*g.sn-g.u0)/R.B;let d=1e9;for(const c of g.cen){const e=Math.abs(u-c);if(e<d)d=e}return d<=band*g.L/2};
+  const lab=new Uint8Array(w*h),stk=new Int32Array(w*h),buf=new Int32Array(w*h);
+  for(let i=0;i<w*h;i++){if(!veg[i]||lab[i])continue;let sp=0,nb=0,touch=false;stk[sp++]=i;lab[i]=1;
+    while(sp){const j=stk[--sp];buf[nb++]=j;const x=j%w,y=(j-x)/w;if(!touch&&inB(x,y))touch=true;
+      if(x>0&&veg[j-1]&&!lab[j-1]){lab[j-1]=1;stk[sp++]=j-1}if(x<w-1&&veg[j+1]&&!lab[j+1]){lab[j+1]=1;stk[sp++]=j+1}
+      if(y>0&&veg[j-w]&&!lab[j-w]){lab[j-w]=1;stk[sp++]=j-w}if(y<h-1&&veg[j+w]&&!lab[j+w]){lab[j+w]=1;stk[sp++]=j+w}}
+    if(touch)for(let q=0;q<nb;q++)keep[buf[q]]=1}
+  return keep}
+const soyOpt=()=>({on:!$("soyOn")||$("soyOn").checked,band:($("soyBand")?+$("soyBand").value:35)/100});
+function analyze(s,lim,opt=soyOpt()){
   const max=1200,sc=Math.min(1,max/Math.max(s.img.width,s.img.height)),w=Math.round(s.img.width*sc),h=Math.round(s.img.height*sc);
   const co=s.co,cn=s.cn;co.width=cn.width=w;co.height=cn.height=h;const xo=co.getContext("2d");xo.drawImage(s.img,0,0,w,h);
-  const d=xo.getImageData(0,0,w,h).data,out=cn.getContext("2d").createImageData(w,h),o=out.data;let veg=0,sum=0;
-  for(let i=0;i<d.length;i+=4){const r=d[i],g=d[i+1],b=d[i+2],exg=2*g-r-b,gli=(2*g-r-b)/(2*g+r+b+1e-6);
-    const isV=g>0&&r/g<0.95&&b/g<0.95&&exg>lim;if(isV){veg++;sum+=gli}
-    const c=rampAt(isV?Math.max(gli,0.12):Math.min(gli,0.06));o[i]=c[0];o[i+1]=c[1];o[i+2]=c[2];o[i+3]=255}
-  cn.getContext("2d").putImageData(out,0,0);s.cov=veg/(d.length/4)*100;s.idx=veg?sum/veg:0;s.lim=lim}
-function analisarTodas(){const lim=+$("lim").value;$("anal").classList.toggle("noNdvi",isPlantas());$("limOut").textContent=lim;SAMP.forEach(s=>{analyze(s,lim);s.el.querySelector("b").textContent=fmt(s.cov)+"%"});
+  const d=xo.getImageData(0,0,w,h).data,N=w*h,veg=new Uint8Array(N),gl=new Float32Array(N);
+  for(let i=0,p=0;p<N;i+=4,p++){const r=d[i],g=d[i+1],b=d[i+2],exg=2*g-r-b;gl[p]=(2*g-r-b)/(2*g+r+b+1e-6);veg[p]=g>0&&r/g<0.95&&b/g<0.95&&exg>lim?1:0}
+  const R=opt.on?detectRows(veg,w,h):null,keep=opt.on?soyKeep(veg,w,h,R,opt.band):veg;
+  const out=cn.getContext("2d").createImageData(w,h),o=out.data;let all=0,soy=0,sum=0;
+  for(let i=0,p=0;p<N;i+=4,p++){let c;if(keep[p]){soy++;sum+=gl[p];c=rampAt(Math.max(gl[p],0.12))}else if(veg[p])c=[215,48,200];else c=rampAt(Math.min(gl[p],0.06));if(veg[p])all++;
+    o[i]=c[0];o[i+1]=c[1];o[i+2]=c[2];o[i+3]=255}
+  const x2=cn.getContext("2d");x2.putImageData(out,0,0);
+  if(R){x2.save();x2.strokeStyle="rgba(255,255,255,.9)";x2.lineWidth=Math.max(1.5,w/400);x2.setLineDash([8,6]);
+    for(const g of R.S){const ex=-g.sn,ey=g.c;for(const c of g.cen){const u=g.u0+c*R.B;x2.beginPath();for(const v of[g.lo,g.hi]){const X=u*g.c+v*ex,Y=u*g.sn+v*ey;v===g.lo?x2.moveTo(X,Y):x2.lineTo(X,Y)}x2.stroke()}}x2.restore()}
+  s.covAll=all/N*100;s.cov=soy/N*100;s.idx=soy?sum/soy:0;s.lim=lim;s.rows=R?R.n:0;s.soy=opt.on}
+function analisarTodas(){const lim=+$("lim").value;$("anal").classList.toggle("noNdvi",isPlantas());$("limOut").textContent=lim;SAMP.forEach(s=>{analyze(s,lim);s.el.querySelector("b").textContent=fmt(s.cov)+"%";const n=s.el.querySelector(".rw");if(n)n.textContent=!s.soy?"todas as plantas verdes":s.rows?`${s.rows} linhas detectadas · total verde ${fmt(s.covAll)}%`:"linhas não detectadas: usado todo o verde"});
   const S=st(SAMP.map(s=>s.cov));$("covOut").textContent=fmt(S.m)+"%";$("covSd").textContent=SAMP.length>1?`± ${fmt(S.sd)} (desvio) · CV ${fmt(S.cv)}% · ${SAMP.length} fotos`:"1 foto"}
 const loadImg=f=>new Promise((ok,no)=>{const im=new Image();im.onload=()=>ok(im);im.onerror=no;im.src=URL.createObjectURL(f)});
 const isGeral=()=>$("uK").value==="geral",isPlantas=()=>$("uK").value==="plantas",single=()=>isGeral();
@@ -223,10 +293,23 @@ $("uFile").addEventListener("change",async e=>{const lim5=single()?1:NPT*NFT,fil
   SAMP=[];$("samp").innerHTML="";
   for(const[i,f]of files.entries()){let img;try{img=await loadImg(f)}catch{toast(`Não consegui abrir ${f.name}.`,1);continue}
     const mP=f.name.match(/(?:^|[^a-z])(?:p|ponto)[\s_.-]*0?([1-9])/i),mF=f.name.match(/(?:^|[^a-z])(?:f|foto)[\s_.-]*0?([1-9])/i),dP=mP&&+mP[1]<=NPT?+mP[1]:Math.floor(i/NFT)%NPT+1,dF=mF&&+mF[1]<=NFT?+mF[1]:i%NFT+1;
-    const el=document.createElement("div");el.className="smp";el.innerHTML=`<div class="two"><canvas></canvas><canvas></canvas></div><div class="cap"><span class="pf"${single()?' hidden':''}><label>Ponto <select>${[1,2,3].map(n=>`<option${n===dP?" selected":""}>${n}</option>`).join("")}</select></label><label>Foto <select class="fsel">${[1,2,3].map(n=>`<option${n===dF?" selected":""}>${n}</option>`).join("")}</select></label></span><b>–</b></div><div class="cap" style="padding-top:0"><small>${esc(f.name)}</small></div>`;
+    const el=document.createElement("div");el.className="smp";el.innerHTML=`<div class="two"><canvas></canvas><canvas></canvas></div><div class="cap"><span class="pf"${single()?' hidden':''}><label>Ponto <select>${[1,2,3].map(n=>`<option${n===dP?" selected":""}>${n}</option>`).join("")}</select></label><label>Foto <select class="fsel">${[1,2,3].map(n=>`<option${n===dF?" selected":""}>${n}</option>`).join("")}</select></label></span><b>–</b></div><div class="cap" style="padding-top:0"><small>${esc(f.name)}</small><small class="rw"></small></div>`;
     const[co,cn]=el.querySelectorAll("canvas");$("samp").append(el);SAMP.push({file:f,img,el,co,cn,sel:el.querySelector("select"),fsel:el.querySelector(".fsel")})}
   $("anal").hidden=!SAMP.length;analisarTodas()});
-$("lim").addEventListener("input",analisarTodas);
+$("lim").addEventListener("input",analisarTodas);$("soyOn").addEventListener("change",analisarTodas);$("soyBand").addEventListener("input",()=>{$("soyBandOut").textContent=$("soyBand").value});$("soyBand").addEventListener("change",analisarTodas);
+/* recalcula as fotos já enviadas com a regra "somente soja" */
+async function recalcGC(){if(MODE==="demo")return toast("Disponível só com o banco conectado.",1);
+  const recs=[...GC.map(r=>({r,tab:"fotos_cobertura"})),...GER.map(r=>({r,tab:"fotos_gerais"}))].filter(x=>x.r.foto_path&&URL_[x.r.foto_path]);if(!recs.length)return toast("Nenhuma foto de Ground Cover para recalcular.",1);
+  const b=$("recalc");b.disabled=true;let ok=0;const stamp=Date.now();
+  try{for(const{r,tab}of recs){b.textContent=`Recalculando ${ok+1}/${recs.length}…`;
+      const img=await createImageBitmap(await (await fetch(URL_[r.foto_path],{cache:"no-store"})).blob());const s={img,co:document.createElement("canvas"),cn:document.createElement("canvas")};
+      analyze(s,num(r.limiar)??+$("lim").value);const png=await new Promise(res=>s.cn.toBlob(res,"image/png")),np=r.foto_path.replace(/\.jpg$/i,"")+`-ndvi-r${stamp}.png`;
+      const{error:e1}=await SB.storage.from("fotos").upload(np,png,{upsert:true,contentType:"image/png"});if(e1)throw e1;
+      const upd={cobertura_pct:+s.cov.toFixed(2),mapa_path:np,atualizado_em:new Date().toISOString()};if(tab==="fotos_cobertura")upd.indice_medio=+s.idx.toFixed(4);
+      const{error}=await SB.from(tab).update(upd).eq("id",r.id);if(error)throw error;if(r.mapa_path&&r.mapa_path!==np)await SB.storage.from("fotos").remove([r.mapa_path]);ok++}
+    toast(`${ok} foto(s) recalculadas considerando só as linhas de soja.`);await loadDB()}
+  catch(err){toast(`Parou na foto ${ok+1}: ${err.message}`,1);await loadDB()}finally{b.disabled=false;b.textContent="Recalcular fotos já enviadas"}}
+$("recalc").addEventListener("click",recalcGC);
 const slug=s=>String(s).normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-");
 $("saveFoto").addEventListener("click",async()=>{
   if(MODE==="demo")return toast("No modo de exemplo nada é salvo.",1);
@@ -529,7 +612,12 @@ $("demoBtn").onclick=()=>{MODE="demo";PAPEL="admin";demo();show(false);$("reload
 $("logout").onclick=async()=>{if(MODE!=="demo"&&SB)await SB.auth.signOut();location.reload()};
 $("reload").onclick=()=>loadDB();
 SB?.auth.onAuthStateChange(ev=>{if(ev==="SIGNED_IN"&&$("app").hidden&&MODE!=="demo")setTimeout(boot,0)});
-$("sP").addEventListener("change",()=>{setSel($("sF"),opts(fazOpts($("sP").value),"Todas"));renderPainel()});
+$("sP").addEventListener("change",e=>{const v=e.target.value;if(!v)SELP.clear();else e.target.checked?SELP.add(v):SELP.delete(v);if(SELP.size===PROD.length&&PROD.length>1)SELP.clear();
+  fillProd();setSel($("sF"),opts(fazOptsM(),"Todas"));renderPainel()});
+$("plCmp").addEventListener("change",renderPainel);
+$("sPb").addEventListener("click",e=>{e.stopPropagation();const o=$("sP").hidden;$("sP").hidden=!o;$("sPb").setAttribute("aria-expanded",String(o))});
+document.addEventListener("click",e=>{if(!$("sP").hidden&&!e.target.closest("#sPw")){$("sP").hidden=true;$("sPb").setAttribute("aria-expanded","false")}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("sP").hidden){$("sP").hidden=true;$("sPb").focus()}});
 for(const id of["sF","sE","locA"])$(id).addEventListener("change",renderPainel);
 $("uP").addEventListener("change",()=>setSel($("uF"),opts(fazOpts($("uP").value))));
 $("cP").addEventListener("change",()=>{setSel($("cF"),opts(fazOpts($("cP").value)));fillSelects();renderFotos()});
