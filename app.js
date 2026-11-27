@@ -163,14 +163,27 @@ function renderPainel(){
   /* comparação por local */
   renderLoc(pe,ge,E);
   /* séries */
-  const line=(id,rows,k,unit,f=1,ve=false)=>{const S=series(rows,k);
-    if(ve&&S.ss.length){/* todas as curvas começam em VE com 2 cm */if(S.ss[0]!=="VE")S.ss.unshift("VE");S.daeOf.VE=0;const ov=S.val;S.val=t=>ov(t).map((v,i)=>S.ss[i]==="VE"?2:v)}mk(id,{type:"line",data:{labels:S.ss.map(e=>isNaN(S.daeOf[e])?e:`${e} · ${fmt(S.daeOf[e],0)} DAE`),
-    datasets:TR.map(t=>({label:t,hidden:HIDE.has(t),data:S.val(t).map(v=>v==null?null:v/f),borderColor:COL[t],backgroundColor:COL[t],borderWidth:t==="Maxcel"?3.5:2,pointRadius:4,tension:.3,spanGaps:true}))},
-    plugins:[lineLab(f>1?0:1)],options:{maintainAspectRatio:false,layout:{padding:{top:14}},plugins:{legend:{position:"bottom",labels:{boxWidth:12},onClick:(e,it)=>togTr(it.text)},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${fmt(c.raw,f>1?0:1)} ${unit}`}}},scales:{x:{},y:{beginAtZero:id==="cPop",title:{display:true,text:unit}}}}});return S};
-  line("cGC",gc,"cobertura_pct","% cobertura");
+  /* linhas ao longo do ciclo: eixo X em dias após emergência (distância real entre avaliações), começando em V0 = 0 */
+  const line=(id,rows,k,unit,f=1,v0=false,cap)=>{const S=series(rows,k);
+    if(v0&&S.ss.length){if(S.ss[0]!=="V0")S.ss.unshift("V0");S.daeOf.V0=0;const ov=S.val;S.val=t=>ov(t).map((v,i)=>S.ss[i]==="V0"?0:v)}
+    let last=0;const X=S.ss.map(e=>{const d=S.daeOf[e];last=isNaN(d)?last+10:Math.max(d,last);return last});
+    const vals=TR.flatMap(t=>S.val(t)).filter(v=>v!=null).map(v=>v/f),mx=vals.length?Math.max(...vals):1,step=mx>60?10:mx>20?5:mx>8?2:1,ymax=cap?Math.min(cap,Math.ceil(mx*1.12/step)*step):Math.ceil(mx*1.12/step)*step;
+    const lab=v=>{const i=X.indexOf(v);return i<0?"":[S.ss[i],`${fmt(v,0)} DAE`]};
+    mk(id,{type:"line",data:{datasets:TR.map(t=>({label:t,hidden:HIDE.has(t),data:S.val(t).map((v,i)=>v==null?null:{x:X[i],y:v/f}).filter(Boolean),borderColor:COL[t],backgroundColor:COL[t],borderWidth:t==="Maxcel"?3.5:2,pointRadius:4,tension:.25}))},
+      plugins:[lineLab(f>1?0:1)],options:{maintainAspectRatio:false,layout:{padding:{top:14,right:18}},plugins:{legend:{position:"bottom",labels:{boxWidth:12},onClick:(e,it)=>togTr(it.text)},tooltip:{callbacks:{title:c=>lab(c[0].parsed.x).join(" · "),label:c=>`${c.dataset.label}: ${fmt(c.parsed.y,f>1?0:1)} ${unit}`}}},
+        scales:{x:{type:"linear",min:0,max:Math.max(...X)+Math.max(3,Math.round(Math.max(...X)*0.04)),afterBuildTicks:ax=>{ax.ticks=X.map(v=>({value:v}))},ticks:{autoSkip:false,maxRotation:0,callback:v=>lab(v)}},
+          y:{min:0,max:ymax,ticks:{stepSize:step},title:{display:true,text:unit}}}}});return S};
+  line("cGC",gc,"cobertura_pct","% cobertura",1,true,100);
   const G=line("cGrow",pl,"altura_cm","cm",1,true);
   const hasEsp=pl.some(r=>r.pop_ha);$("popH").textContent=hasEsp?"Plantas por hectare (estande × espaçamento da fazenda)":"Plantas por metro de linha — cadastre o espaçamento da fazenda para ver plantas/ha";
-  line("cPop",pl,hasEsp?"pop_ha":"estande_pl_m",hasEsp?"mil pl/ha":"pl/m",hasEsp?1000:1);
+  {/* população em barras: estádios no eixo X, tratamentos lado a lado, eixo Y ajustado aos valores */
+    const k=hasEsp?"pop_ha":"estande_pl_m",f=hasEsp?1000:1,un=hasEsp?"mil pl/ha":"pl/m",S=series(pl,k),trs=TRV();
+    const ds=trs.map(t=>{const v=S.ss.map(e=>st(pl.filter(r=>r.estadio===e&&r.tratamento===t).map(r=>r[k]==null?null:r[k]/f)));
+      return{label:t,data:v.map(x=>isNaN(x.m)?null:+x.m.toFixed(hasEsp?0:1)),sd:v.map(x=>x.sd),dec:hasEsp?0:1,backgroundColor:COL[t]+"cc",borderRadius:4}});
+    const vals=ds.flatMap(d=>d.data.map((v,i)=>v==null?null:[v-(d.sd[i]||0),v+(d.sd[i]||0)])).filter(Boolean).flat(),lo=Math.min(...vals),hi=Math.max(...vals),span=Math.max(hi-lo,hi*0.05),step=span>80?20:span>30?10:span>12?5:span>5?2:1;
+    mk("cPop",{type:"bar",plugins:[errPlug],data:{labels:S.ss.map(e=>isNaN(S.daeOf[e])?e:[e,`${fmt(S.daeOf[e],0)} DAE`]),datasets:ds},options:{maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{boxWidth:12},onClick:(e,it)=>togTr(it.text)},
+      tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${fmt(c.raw,hasEsp?0:1)} ${un} ± ${fmt(c.dataset.sd[c.dataIndex],hasEsp?0:1)}`}}},
+      scales:{x:{grid:{display:false}},y:{min:vals.length?Math.max(0,Math.floor((lo-span*0.25)/step)*step):0,max:vals.length?Math.ceil((hi+span*0.35)/step)*step:undefined,ticks:{stepSize:step},title:{display:true,text:un}}}}})}
   /* taxa de crescimento */
   const rate=t=>{const v=G.val(t),o=[];for(let i=1;i<G.ss.length;i++){const d=G.daeOf[G.ss[i]]-G.daeOf[G.ss[i-1]];o.push(v[i]!=null&&v[i-1]!=null&&d>0?(v[i]-v[i-1])/d:null)}return o};
   $("tabRate").innerHTML=G.ss.length>1?`<tr><th>Taxa de crescimento (cm/dia)</th>${G.ss.slice(1).map((e,i)=>`<th>${esc(G.ss[i])}→${esc(e)}</th>`).join("")}<th>Média</th></tr>`+
@@ -209,7 +222,7 @@ function renderPainel(){
 }
 /* rótulo nos pontos das linhas */
 const lineLab=dec=>({id:"ll",afterDatasetsDraw(c){const x=c.ctx;x.save();x.textAlign="center";x.textBaseline="bottom";x.font="600 11px Barlow, system-ui, sans-serif";
-  const L=[];c.data.datasets.forEach((ds,di)=>{if(!c.isDatasetVisible(di))return;c.getDatasetMeta(di).data.forEach((p,i)=>{const v=ds.data[i];if(v!=null)L.push({i,x:p.x,y:p.y-7,t:fmt(v,dec),col:ds.borderColor})})});
+  const L=[];c.data.datasets.forEach((ds,di)=>{if(!c.isDatasetVisible(di))return;c.getDatasetMeta(di).data.forEach((p,i)=>{const v=ds.data[i];if(v!=null&&!(typeof v==="object"&&v.x===0&&v.y===0)){const y=typeof v==="object"?v.y:v;L.push({i:typeof v==="object"?v.x:i,x:p.x,y:p.y-7,t:fmt(y,dec),col:ds.borderColor})}})});
   for(const g of Object.values(by(L,l=>l.i))){g.sort((a,b)=>a.y-b.y);for(let k=1;k<g.length;k++)if(g[k].y-g[k-1].y<13)g[k].y=g[k-1].y+13}
   for(const l of L){x.strokeStyle="#fff";x.lineWidth=3;x.strokeText(l.t,l.x,l.y);x.fillStyle=l.col;x.fillText(l.t,l.x,l.y)}x.restore()}});
 /* altura por produto · fazenda · produtor (todos os produtores, ignora o filtro de produtor) */
