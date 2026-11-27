@@ -163,11 +163,12 @@ function renderPainel(){
   /* comparação por local */
   renderLoc(pe,ge,E);
   /* séries */
-  const line=(id,rows,k,unit,f=1)=>{const S=series(rows,k);mk(id,{type:"line",data:{labels:S.ss.map(e=>isNaN(S.daeOf[e])?e:`${e} · ${fmt(S.daeOf[e],0)} DAE`),
+  const line=(id,rows,k,unit,f=1,ve=false)=>{const S=series(rows,k);
+    if(ve&&S.ss.length){/* todas as curvas começam em VE com 2 cm */if(S.ss[0]!=="VE")S.ss.unshift("VE");S.daeOf.VE=0;const ov=S.val;S.val=t=>ov(t).map((v,i)=>S.ss[i]==="VE"?2:v)}mk(id,{type:"line",data:{labels:S.ss.map(e=>isNaN(S.daeOf[e])?e:`${e} · ${fmt(S.daeOf[e],0)} DAE`),
     datasets:TR.map(t=>({label:t,hidden:HIDE.has(t),data:S.val(t).map(v=>v==null?null:v/f),borderColor:COL[t],backgroundColor:COL[t],borderWidth:t==="Maxcel"?3.5:2,pointRadius:4,tension:.3,spanGaps:true}))},
     plugins:[lineLab(f>1?0:1)],options:{maintainAspectRatio:false,layout:{padding:{top:14}},plugins:{legend:{position:"bottom",labels:{boxWidth:12},onClick:(e,it)=>togTr(it.text)},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${fmt(c.raw,f>1?0:1)} ${unit}`}}},scales:{x:{},y:{beginAtZero:id==="cPop",title:{display:true,text:unit}}}}});return S};
   line("cGC",gc,"cobertura_pct","% cobertura");
-  const G=line("cGrow",pl,"altura_cm","cm");
+  const G=line("cGrow",pl,"altura_cm","cm",1,true);
   const hasEsp=pl.some(r=>r.pop_ha);$("popH").textContent=hasEsp?"Plantas por hectare (estande × espaçamento da fazenda)":"Plantas por metro de linha — cadastre o espaçamento da fazenda para ver plantas/ha";
   line("cPop",pl,hasEsp?"pop_ha":"estande_pl_m",hasEsp?"mil pl/ha":"pl/m",hasEsp?1000:1);
   /* taxa de crescimento */
@@ -401,15 +402,22 @@ function renderTrSel(){if($("trSel").childElementCount)return;
   $("trSel").addEventListener("change",renderFotos);$("trAll").onclick=()=>{$("trSel").querySelectorAll("input").forEach(i=>i.checked=true);renderFotos()}}
 const delB=(k,id,inline)=>PAPEL==="admin"&&MODE!=="demo"?`<button type="button" class="del${inline?" inl":""}" data-delk="${k}" data-delid="${esc(id)}" title="Excluir esta foto">Excluir</button>`:"";
 const rotB=(k,id)=>(PAPEL==="admin"||PAPEL==="avaliador")&&MODE!=="demo"?`<button type="button" class="rot" data-rotk="${k}" data-rotid="${esc(id)}" title="Girar 90° no sentido horário">↻ Girar</button>`:"";
+/* refaz o falso NDVI e o grau de cover de uma foto de Ground Cover depois de girar/recortar, e grava no banco (vale para o painel) */
+async function gcRedo(k,r,canvas,stamp){if(k!==""&&k!=="geral")return{};const s={img:canvas,co:document.createElement("canvas"),cn:document.createElement("canvas"),esp:num(fazById(r.fazenda_id)?.espacamento_cm)||50};
+  analyze(s,num(r.limiar)??20,{on:true});const png=await new Promise(res=>s.cn.toBlob(res,"image/png")),np=r.foto_path.replace(/(-[rc]\d+)*\.\w+$/,"")+`-ndvi-fe${stamp}.png`;
+  const{error}=await SB.storage.from("fotos").upload(np,png,{upsert:true,contentType:"image/png"});if(error)throw error;
+  const u={cobertura_pct:+s.cov.toFixed(2),mapa_path:np,atualizado_em:new Date().toISOString()};if(k==="")u.indice_medio=+s.idx.toFixed(4);return u}
 async function rotFoto(b){if(b.disabled)return;const K=KIND[b.dataset.rotk],r=K&&K.arr().find(x=>x.id===b.dataset.rotid);if(!r)return;
   b.disabled=true;b.textContent="Girando…";const stamp=Date.now(),upd={},old=[];
-  try{for(const col of["foto_path","mapa_path"]){const p=r[col],u=p&&URL_[p];if(!u)continue;
+  const gc=b.dataset.rotk===""||b.dataset.rotk==="geral";let rotC=null;
+  try{for(const col of gc?["foto_path"]:["foto_path","mapa_path"]){const p=r[col],u=p&&URL_[p];if(!u)continue;
       const bm=await createImageBitmap(await (await fetch(u,{cache:"no-store"})).blob());
       const c=document.createElement("canvas");c.width=bm.height;c.height=bm.width;const x=c.getContext("2d");x.translate(c.width,0);x.rotate(Math.PI/2);x.drawImage(bm,0,0);
       const png=/\.png$/i.test(p),type=png?"image/png":"image/jpeg",out=await new Promise(res=>c.toBlob(res,type,.9));
-      const np=p.replace(/(-r\d+)?(\.\w+)$/,`-r${stamp}$2`);
+      if(col==="foto_path")rotC=c;const np=p.replace(/(-r\d+)?(\.\w+)$/,`-r${stamp}$2`);
       const{error}=await SB.storage.from("fotos").upload(np,out,{upsert:true,contentType:type});if(error)throw error;upd[col]=np;old.push(p)}
     if(!old.length)throw new Error("foto não encontrada");
+    if(gc&&rotC){Object.assign(upd,await gcRedo(b.dataset.rotk,{...r,foto_path:upd.foto_path},rotC,stamp));if(r.mapa_path)old.push(r.mapa_path)}
     const{error}=await SB.from(K.tab).update(upd).eq("id",r.id);if(error)throw error;
     await SB.storage.from("fotos").remove(old);toast("Foto girada 90°.");await loadDB()}
   catch(err){toast("Não foi possível girar: "+err.message,1);b.disabled=false;b.textContent="↻ Girar"}}
@@ -453,9 +461,11 @@ function openCrop(img,rect,title){return new Promise(done=>{const W=img.width,H=
 const cropB=(k,id)=>(PAPEL==="admin"||PAPEL==="avaliador")&&MODE!=="demo"?`<button type="button" class="crop" data-cropk="${k}" data-cropid="${esc(id)}" title="Recortar a foto (pano azul)">✂ Recortar</button>`:"";
 async function cropFoto(b){const K=KIND[b.dataset.cropk],r=K&&K.arr().find(x=>x.id===b.dataset.cropid),u=r&&URL_[r.foto_path];if(!u)return;
   try{const img=await createImageBitmap(await (await fetch(u,{cache:"no-store"})).blob());const R=await openCrop(img,blueRect(img),`Recortar · ${r.tratamento||""}`);if(!R)return;
-    const out=await new Promise(res=>cropTo(img,R,2000).toBlob(res,"image/jpeg",.9)),np=r.foto_path.replace(/(-c\d+)?(\.\w+)$/,`-c${Date.now()}$2`);
+    const cc=cropTo(img,R,2000),stamp=Date.now(),out=await new Promise(res=>cc.toBlob(res,"image/jpeg",.9)),np=r.foto_path.replace(/(-c\d+)?(\.\w+)$/,`-c${stamp}$2`);
     const{error:e1}=await SB.storage.from("fotos").upload(np,out,{upsert:true,contentType:"image/jpeg"});if(e1)throw e1;
-    const{error}=await SB.from(K.tab).update({foto_path:np}).eq("id",r.id);if(error)throw error;await SB.storage.from("fotos").remove([r.foto_path]);toast("Foto recortada.");await loadDB()}
+    const k=b.dataset.cropk,upd={foto_path:np,...await gcRedo(k,{...r,foto_path:np},cc,stamp)};
+    const{error}=await SB.from(K.tab).update(upd).eq("id",r.id);if(error)throw error;await SB.storage.from("fotos").remove([r.foto_path,...(upd.mapa_path&&r.mapa_path?[r.mapa_path]:[])]);
+    toast(upd.cobertura_pct!=null?`Foto recortada · grau de cover recalculado: ${fmt(upd.cobertura_pct)}%.`:"Foto recortada.");await loadDB()}
   catch(err){toast("Não foi possível recortar: "+err.message,1)}}
 document.addEventListener("click",e=>{const cb=e.target.closest&&e.target.closest("button.crop");if(cb){e.stopPropagation();e.preventDefault();cropFoto(cb)}},true);
 async function delFoto(b){if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Confirmar exclusão";b.classList.add("sure");setTimeout(()=>{if(b.isConnected&&b.dataset.sure==="1"){b.dataset.sure="";b.textContent="Excluir";b.classList.remove("sure")}},5000);return}
@@ -490,10 +500,14 @@ function renderFotos(){
     return u?`<div role="button" tabindex="0" class="cell tall" data-ct="${esc(t)}" data-ctipo="grupo"><img src="${esc(u)}" alt="Foto em grupo ${esc(t)}"><span class="bd">${esc(t)}</span>${delB("comp",r.id)}${rotB("comp",r.id)}${cropB("comp",r.id)}${fn(r)}</div>`:`<div class="cell tall" style="cursor:default"><span class="nf">${esc(t)} · foto em grupo: sem foto</span></div>`}).join("");
   if(nP||fgs.length)h+=`<div class="sec">Ground Cover (falso NDVI)</div>`;
   for(let a=1;a<=nA;a++)for(let fo=1;fo<=nFo;fo++)h+=ts.map(t=>{const g=gcRows(t).find(r=>(r.amostra||1)===a&&(r.foto||1)===fo),im=imgOf(g,mode);
-    return im?`<div role="button" tabindex="0" class="cell" data-t="${esc(t)}" data-a="${a}" data-f="${fo}">${im}<span class="bd">Ponto ${a} · foto ${fo} · ${fmt(g.cobertura_pct)}%</span>${g.foto_path?delB("",g.id)+rotB("",g.id):""}${fn(g)}</div>`:`<div class="cell" style="cursor:default"><span class="nf">${esc(t)} · ponto ${a} · foto ${fo}: sem foto</span></div>`}).join("");
+    return im?`<div role="button" tabindex="0" class="cell" data-t="${esc(t)}" data-a="${a}" data-f="${fo}">${im}<span class="bd">Ponto ${a} · foto ${fo} · ${fmt(g.cobertura_pct)}%</span>${g.foto_path?delB("",g.id)+rotB("",g.id)+cropB("",g.id):""}${fn(g)}</div>`:`<div class="cell" style="cursor:default"><span class="nf">${esc(t)} · ponto ${a} · foto ${fo}: sem foto</span></div>`}).join("");
   $("bigGrid").innerHTML=h;
-  const pm=$("pMode").value,[a,fo]=$("pS").value.split("-").map(Number),A=$("pA").value,B=$("pB").value,gA=gcRows(A).find(r=>(r.amostra||1)===a&&(r.foto||1)===(fo||1)),gB=gcRows(B).find(r=>(r.amostra||1)===a&&(r.foto||1)===(fo||1));
-  const nf=t=>`<div style="display:grid;place-items:center;color:#fff;height:100%">${esc(t)} · ponto ${a} · foto ${fo||1}: sem foto</div>`;
+  const pm=$("pMode").value,A=$("pA").value,B=$("pB").value;
+  const fill=(sel,t)=>{const rows=gcRows(t).slice().sort((x,y)=>(x.amostra||1)-(y.amostra||1)||(x.foto||1)-(y.foto||1)),v=sel.value;
+    sel.innerHTML=rows.length?rows.map(r=>`<option value="${esc(r.id)}">Ponto ${r.amostra||1} · foto ${r.foto||1} · ${fmt(r.cobertura_pct)}%${r.arquivo?" · "+esc(r.arquivo):""}</option>`).join(""):`<option value="">sem fotos</option>`;
+    if(rows.some(r=>r.id===v))sel.value=v;return rows.find(r=>r.id===sel.value)};
+  const gA=fill($("pS"),A),gB=fill($("pS2"),B);
+  const nf=t=>`<div style="display:grid;place-items:center;color:#fff;height:100%">${esc(t)}: sem foto de Ground Cover</div>`;
   $("lyA").innerHTML=imgOf(gA,pm==="mapa"?"mapa":"foto")||nf(A);$("lyB").innerHTML=imgOf(gB,pm==="foto"?"foto":"mapa")||nf(B);
   $("tgA").textContent=`${A}${gA?` · ${fmt(gA.cobertura_pct)}%`:""}`;$("tgA").style.background=COL[A];$("tgB").textContent=`${B}${gB?` · ${fmt(gB.cobertura_pct)}%`:""}`;$("tgB").style.background=COL[B];slide();
   renderComp();
@@ -714,7 +728,7 @@ for(const id of["sF","sE","locA"])$(id).addEventListener("change",renderPainel);
 $("uP").addEventListener("change",()=>setSel($("uF"),opts(fazOpts($("uP").value))));
 $("cP").addEventListener("change",()=>{setSel($("cF"),opts(fazOpts($("cP").value)));fillSelects();renderFotos()});
 $("cF").addEventListener("change",()=>{fillSelects();renderFotos()});
-for(const id of["cE","cMode","pA","pB","pS","pMode"])$(id).addEventListener("change",renderFotos);
+for(const id of["cE","cMode","pA","pB","pS","pS2","pMode"])$(id).addEventListener("change",renderFotos);
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change",renderPainel);
 boot();
 }

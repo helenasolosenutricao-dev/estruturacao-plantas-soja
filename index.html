@@ -6,7 +6,7 @@
 <title>Estruturação de Plantas · Soja</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=18">
+<link rel="stylesheet" href="style.css?v=19">
 </head>
 <body>
 <header class="band"><div class="wrap">
@@ -78,7 +78,7 @@
         <div class="fig"><canvas id="cGC"></canvas></div></div>
 
       <div class="grid2 sect">
-        <div class="card"><h2>Crescimento médio das plantas</h2><p class="h">Altura média por tratamento ao longo dos dias após emergência (DAE)</p>
+        <div class="card"><h2>Crescimento médio das plantas</h2><p class="h">Altura média por tratamento ao longo dos dias após emergência (DAE) · todas as curvas começam em VE com 2 cm</p>
           <div class="fig"><canvas id="cGrow"></canvas></div>
           <div class="scroll" style="margin-top:12px"><table id="tabRate"></table></div></div>
         <div class="card"><h2>População de plantas</h2><p class="h" id="popH">Estande médio por estádio</p>
@@ -137,7 +137,7 @@
     <input type="file" id="quickFile" accept="image/*" multiple hidden>
     <h3 style="margin:26px 0 8px">Produto × Controle</h3>
     <div class="formgrid"><label class="f">Produto<select id="pA"></select></label><select id="pB" hidden></select>
-      <label class="f">Ponto e foto<select id="pS"><option value="1-1">Ponto 1 · foto 1</option><option value="1-2">Ponto 1 · foto 2</option><option value="1-3">Ponto 1 · foto 3</option><option value="2-1">Ponto 2 · foto 1</option><option value="2-2">Ponto 2 · foto 2</option><option value="2-3">Ponto 2 · foto 3</option><option value="3-1">Ponto 3 · foto 1</option><option value="3-2">Ponto 3 · foto 2</option><option value="3-3">Ponto 3 · foto 3</option></select></label>
+      <label class="f">Foto do produto<select id="pS"></select></label><label class="f">Foto do Controle<select id="pS2"></select></label>
       <label class="f">Mostrar<select id="pMode"><option value="foto">Foto original</option><option value="mapa">Falso NDVI</option><option value="mix">Produto foto · Controle NDVI</option></select></label></div>
     <div class="cmp big sbs" id="cmp"><div class="ly" id="lyB"></div><div class="ly top" id="lyA"></div><div class="hand" id="hand"></div>
       <span class="tag" id="tgA" style="left:10px"></span><span class="tag" id="tgB" style="right:10px"></span></div>
@@ -265,6 +265,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="app.js?v=18"></script>
+<script src="app.js?v=19"></script>
 </body>
 </html>
