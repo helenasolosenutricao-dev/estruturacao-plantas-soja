@@ -7,7 +7,7 @@
 :root{color-scheme:light dark;
 --bg:light-dark(#f6f7f2,#0f1712);--card:light-dark(#ffffff,#16221a);--ink:light-dark(#16231a,#e6eee6);--mut:light-dark(#5d6b60,#9fb1a3);
 --line:light-dark(#dfe5dc,#2a3a2e);--deep:#17432a;--gold:#c9a227;
---mx:#1e8a42;--im:#2f6db5;--su:#c7861b;--ct:#8c918a}
+--mx:#1e8a42;--im:#2f6db5;--su:#7b3fa0;--ct:#e67e22}
 :root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
 *{box-sizing:border-box;min-width:0}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Barlow,system-ui,sans-serif;overflow-x:clip}

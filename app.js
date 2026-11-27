@@ -3,7 +3,7 @@
 const TR=["Maxcel","Stay Up","Controle"];
 /* ids fixos da tabela tratamentos */
 const TRID={"Maxcel":1,"Stay Up":3,"Controle":4},TRNOME=Object.fromEntries(Object.entries(TRID).map(([k,v])=>[v,k]));
-const COL={"Maxcel":"#1e8a42","Stay Up":"#c7861b","Controle":"#8c918a"};
+const COL={"Maxcel":"#1e8a42","Stay Up":"#7b3fa0","Controle":"#e67e22"};
 const ORD=["VE","VC","V1","V2","V3","V4","V5","V6","V7","V8","V9","V10","R1","R2","R3","R4","R5","R6","R7","R8"];
 const NPL=5,NPT=3,NFT=3;
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -96,7 +96,8 @@ const errPlug={id:"err",afterDatasetsDraw(c){const y=c.scales.y,x=c.ctx;x.save()
       x.beginPath();x.moveTo(b.x,t);x.lineTo(b.x,bo);x.moveTo(b.x-w,t);x.lineTo(b.x+w,t);x.moveTo(b.x-w,bo);x.lineTo(b.x+w,bo);x.stroke()})});x.restore()}};
 function mk(id,cfg){charts[id]?.destroy();const ink=getComputedStyle(document.body).color,grid=getComputedStyle(document.documentElement).getPropertyValue("--line").trim()||"#ddd";
   Chart.defaults.color=ink;Chart.defaults.font.family="Barlow, system-ui, sans-serif";Chart.defaults.font.size=13;
-  for(const s of Object.values(cfg.options.scales||{}))s.grid={color:grid,...(s.grid||{})};
+  for(const s of Object.values(cfg.options.scales||{})){s.grid={...(s.grid||{}),display:false};s.border={display:true,color:ink}}
+  for(const d of cfg.data.datasets||[])if((d.type||cfg.type)==="bar"){d.borderColor="#000";d.borderWidth=1.5;d.borderSkipped=false}
   charts[id]=new Chart($(id),cfg)}
 const filtP=a=>{const P=$("sP").value,F=$("sF").value;return a.filter(r=>(!P||r.produtor_id===P)&&(!F||r.fazenda_id===F))};
 const meanT=(a,t,k)=>st(a.filter(r=>r.tratamento===t).map(r=>r[k])).m;
