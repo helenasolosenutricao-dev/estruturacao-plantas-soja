@@ -1,9 +1,9 @@
 {
 /* ====================== constantes e utilidades ====================== */
 const TR=["Maxcel","Stay Up","Controle"];
-/* ids fixos da tabela tratamentos (Impulse = 2 foi retirado do experimento) */
-const TRID={"Maxcel":1,"Impulse":2,"Stay Up":3,"Controle":4},TRNOME=Object.fromEntries(Object.entries(TRID).map(([k,v])=>[v,k]));
-const COL={"Maxcel":"#1e8a42","Impulse":"#2f6db5","Stay Up":"#c7861b","Controle":"#8c918a"};
+/* ids fixos da tabela tratamentos */
+const TRID={"Maxcel":1,"Stay Up":3,"Controle":4},TRNOME=Object.fromEntries(Object.entries(TRID).map(([k,v])=>[v,k]));
+const COL={"Maxcel":"#1e8a42","Stay Up":"#c7861b","Controle":"#8c918a"};
 const ORD=["VE","VC","V1","V2","V3","V4","V5","V6","V7","V8","V9","V10","R1","R2","R3","R4","R5","R6","R7","R8"];
 const NPL=5,NPT=3,NFT=3;
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -25,7 +25,7 @@ const setSel=(el,html)=>{const v=el.value;el.innerHTML=html;if([...el.options].s
 
 /* ====================== estado ====================== */
 let SB=null,PAPEL=null,MODE="";
-let PROD=[],FAZ=[],PL=[],GC=[],GER=[],PF=[],URL_={};
+let PROD=[],FAZ=[],PL=[],GC=[],GER=[],PF=[],FC=[],URL_={};
 const CFG=window.APP_CONFIG||{};
 if(CFG.supabaseUrl&&CFG.supabaseAnonKey&&!CFG.supabaseAnonKey.startsWith("COLE_")&&window.supabase)SB=window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseAnonKey);
 const fazById=id=>FAZ.find(f=>f.id===id);
@@ -41,7 +41,7 @@ function demo(){
        {id:"f3",produtor_id:"p2",nome:"Faz. Primavera",municipio:"Sorriso",uf:"MT",espacamento_cm:50,data_emergencia:"2026-10-25"},
        {id:"f4",produtor_id:"p3",nome:"Faz. Chapadão",municipio:"Luís Eduardo Magalhães",uf:"BA",espacamento_cm:50,data_emergencia:"2026-11-05"}];
   const ST=[["V4",25],["V8",42],["R1",56],["R3",72]],base={V4:[21,38],V8:[39,63],R1:[55,82],R3:[71,92]};
-  const ef={Maxcel:[-0.05,0.13],Impulse:[0.01,0.06],"Stay Up":[-0.08,0.04],Controle:[0,0]};
+  const ef={Maxcel:[-0.05,0.13],"Stay Up":[-0.08,0.04],Controle:[0,0]};
   PL=[];GC=[];let id=0;
   for(const f of FAZ){const p=prodById(f.produtor_id),sh=1+nr()*0.1,sg=1+nr()*0.05,stand=13+nr()*1.5;
     for(const t of TR)for(const[e,d]of ST){const ramp=e==="V4"?0.3:1,[eh,eg]=ef[t].map(x=>x*ramp),[bh,bg]=base[e];
@@ -56,14 +56,15 @@ async function fetchAll(table){const out=[];for(let i=0;;i+=1000){const{data,err
 async function loadDB(){
   $("srcNote").textContent="Carregando dados do banco…";
   try{
-    [PROD,FAZ,PL,GC,GER,PF]=await Promise.all([SB.from("produtores").select("*").order("nome").then(r=>r.data||[]),
+    [PROD,FAZ,PL,GC,GER,PF,FC]=await Promise.all([SB.from("produtores").select("*").order("nome").then(r=>r.data||[]),
       SB.from("fazendas").select("*").order("nome").then(r=>r.data||[]),fetchAll("v_plantas"),fetchAll("v_cobertura"),
-      SB.from("fotos_gerais").select("*").then(r=>r.data||[]),SB.from("fotos_plantas").select("*").then(r=>r.data||[])]);
+      SB.from("fotos_gerais").select("*").then(r=>r.data||[]),SB.from("fotos_plantas").select("*").then(r=>r.data||[]),SB.from("fotos_comparacao").select("*").then(r=>r.data||[])]);
     PF.forEach(r=>{const f=fazById(r.fazenda_id);r.tratamento=TRNOME[r.tratamento_id];r.fazenda=f?.nome||"";r.produtor_id=f?.produtor_id});
-    {const ok=r=>TR.includes(r.tratamento);PL=PL.filter(ok);GC=GC.filter(ok);PF=PF.filter(ok)}
+    FC.forEach(r=>{const f=fazById(r.fazenda_id);r.tratamento=TRNOME[r.tratamento_id];r.fazenda=f?.nome||"";r.produtor_id=f?.produtor_id});
+    {const ok=r=>TR.includes(r.tratamento);PL=PL.filter(ok);GC=GC.filter(ok);PF=PF.filter(ok);FC=FC.filter(ok)}
     PL.forEach(r=>{r.ponto=num(r.ponto)??1;r.altura_cm=num(r.altura_cm);r.estande_pl_m=num(r.estande_pl_m);r.espacamento_cm=num(r.espacamento_cm);r.dae=num(r.dae)});
     GC.forEach(r=>{r.cobertura_pct=num(r.cobertura_pct);r.dae=num(r.dae)});
-    URL_={};const paths=[...GC,...GER,...PF].flatMap(g=>[g.foto_path,g.mapa_path]).filter(Boolean);
+    URL_={};const paths=[...GC,...GER,...PF,...FC].flatMap(g=>[g.foto_path,g.mapa_path]).filter(Boolean);
     for(let i=0;i<paths.length;i+=100){const{data}=await SB.storage.from("fotos").createSignedUrls(paths.slice(i,i+100),3600);
       (data||[]).forEach((u,k)=>{if(u.signedUrl)URL_[paths[i+k]]=u.signedUrl})}
     $("srcNote").textContent=`Banco Supabase · ${PROD.length} produtor(es) · ${FAZ.length} fazenda(s) · ${PL.length} medições de altura/estande · ${GC.length} fotos de cobertura · ${PF.length} fotos de plantas inteiras`;
@@ -303,7 +304,47 @@ function renderFotos(){
   const nf=t=>`<div style="display:grid;place-items:center;color:#fff;height:100%">${esc(t)} · ponto ${a} · foto ${fo||1}: sem foto</div>`;
   $("lyA").innerHTML=imgOf(gA,pm==="mapa"?"mapa":"foto")||nf(A);$("lyB").innerHTML=imgOf(gB,pm==="foto"?"foto":"mapa")||nf(B);
   $("tgA").textContent=`${A}${gA?` · ${fmt(gA.cobertura_pct)}%`:""}`;$("tgA").style.background=COL[A];$("tgB").textContent=`${B}${gB?` · ${fmt(gB.cobertura_pct)}%`:""}`;$("tgB").style.background=COL[B];slide();
+  renderComp();
 }
+/* ====================== quadros: planta individual e foto em grupo (1 foto por tratamento) ====================== */
+const COMP=[["compI","individual","Planta individual"],["compG","grupo","Foto em grupo"]];
+const fnTag=r=>r&&r.arquivo?`<span class="fn" title="${esc(r.arquivo)}">${esc(r.arquivo)}</span>`:"";
+const compRows=tipo=>FC.filter(r=>r.fazenda_id===$("cF").value&&r.estadio===$("cE").value&&r.tipo===tipo);
+function renderComp(){
+  const fz=fazById($("cF").value),E=$("cE").value;
+  for(const[pre,tipo,nome]of COMP){
+    const rows=compRows(tipo),url=t=>{const r=rows.find(x=>x.tratamento===t);return r&&URL_[r.foto_path]};
+    $(pre+"_ctx").textContent=fz&&E?`${prodById(fz.produtor_id)?.nome||""} · ${fz.nome} · ${E}`:"Escolha produtor, fazenda e estádio na Comparação lado a lado.";
+    $(pre+"_grid").style.setProperty("--n",TR.length);
+    $(pre+"_grid").innerHTML=TR.map(t=>`<div class="hd" style="background:${COL[t]}"><span>${esc(t)}</span><b>${nome}</b>${canUp()?`<span class="adds"><button type="button" class="add" data-cadd="${tipo}" data-t="${esc(t)}">${url(t)?"Trocar foto":"+ Adicionar foto"}</button></span>`:""}</div>`).join("")+
+      TR.map(t=>{const r=rows.find(x=>x.tratamento===t),u=url(t);
+        return u?`<div role="button" tabindex="0" class="cell tall" data-ct="${esc(t)}" data-ctipo="${tipo}"><img src="${esc(u)}" alt="${esc(nome)} · ${esc(t)}"><span class="bd">${esc(t)}</span>${delB("comp",r.id)}${fnTag(r)}</div>`
+          :`<div class="cell tall" style="cursor:default"><span class="nf">${esc(t)} · ${nome.toLowerCase()}: sem foto</span></div>`}).join("");
+    for(const[k,d]of[["_A","Maxcel"],["_B","Controle"]]){const el=$(pre+k);if(!el.options.length){setSel(el,opts(TR.map(t=>({v:t,t}))));el.value=d}}
+    const A=$(pre+"_A").value,B=$(pre+"_B").value,nf=t=>`<div class="nfc">${esc(t)}: sem foto</div>`;
+    $(pre+"_lyA").innerHTML=url(A)?`<img src="${esc(url(A))}" alt="">`:nf(A);$(pre+"_lyB").innerHTML=url(B)?`<img src="${esc(url(B))}" alt="">`:nf(B);
+    $(pre+"_tgA").textContent=A;$(pre+"_tgA").style.background=COL[A];$(pre+"_tgB").textContent=B;$(pre+"_tgB").style.background=COL[B];compSlide(pre)}
+}
+const compSlide=pre=>{const v=$(pre+"_rg").value;$(pre+"_lyA").style.clipPath=`inset(0 ${100-v}% 0 0)`;$(pre+"_hand").style.left=v+"%"};
+let CQ=null;
+async function shrinkJpg(file,max=1600){const img=await loadImg(file),sc=Math.min(1,max/Math.max(img.width,img.height)),c=document.createElement("canvas");
+  c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);c.getContext("2d").drawImage(img,0,0,c.width,c.height);return new Promise(r=>c.toBlob(r,"image/jpeg",0.9))}
+$("compFile").addEventListener("change",async e=>{const f=e.target.files[0];e.target.value="";if(!f||!CQ)return;
+  if(MODE==="demo")return toast("No modo de exemplo nada é salvo.",1);
+  const fid=$("cF").value,E=$("cE").value,{tipo,t}=CQ,fz=fazById(fid),p=`comparacao/${fid}/${slug(E)}/${tipo}-${slug(t)}.jpg`;
+  toast(`Enviando foto de ${t}…`);
+  try{const jpg=await shrinkJpg(f);const{error:e1}=await SB.storage.from("fotos").upload(p,jpg,{upsert:true,contentType:"image/jpeg"});if(e1)throw e1;
+    const dt=$("uD").value||null;
+    const{error}=await SB.from("fotos_comparacao").upsert({fazenda_id:fid,tratamento_id:TRID[t],estadio:E,tipo,data:dt,dae:daysBetween(fz?.data_emergencia,dt),foto_path:p,arquivo:f.name,atualizado_em:new Date().toISOString()},{onConflict:"fazenda_id,tratamento_id,estadio,tipo"});if(error)throw error;
+    toast(`Foto salva · ${t} · ${tipo==="grupo"?"foto em grupo":"planta individual"} · ${E}.`);await loadDB();
+  }catch(err){toast("Não foi possível salvar: "+err.message,1)}});
+for(const[pre]of COMP){
+  $(pre+"_grid").addEventListener("click",e=>{const db=e.target.closest("button.del");if(db){e.stopPropagation();return delFoto(db)}
+    const ab=e.target.closest("button[data-cadd]");if(ab){if(!$("cF").value||!$("cE").value)return toast("Escolha produtor, fazenda e estádio na Comparação lado a lado.",1);CQ={tipo:ab.dataset.cadd,t:ab.dataset.t};$("compFile").click();return}
+    const c=e.target.closest(".cell[data-ct]");if(!c)return;$("lbImg").src=c.querySelector("img").src;
+    $("lbCap").textContent=`${c.dataset.ct} · ${c.dataset.ctipo==="grupo"?"foto em grupo":"planta individual"} · ${$("cE").value}${c.querySelector(".fn")?" · "+c.querySelector(".fn").textContent:""}`;$("lb").hidden=false});
+  for(const k of["_A","_B"])$(pre+k).addEventListener("change",renderComp);
+  $(pre+"_rg").addEventListener("input",()=>compSlide(pre))}
 const slide=()=>{const v=$("rg").value;$("lyA").style.clipPath=`inset(0 ${100-v}% 0 0)`;$("hand").style.left=v+"%"};
 $("bigGrid").addEventListener("click",e=>{const ab=e.target.closest("button.add");if(ab){e.stopPropagation();return quickAdd(ab.dataset.add,ab.dataset.t)}
   const db=e.target.closest("button.del");if(db){e.stopPropagation();return delFoto(db)}
@@ -364,9 +405,10 @@ function renderEditar(){
   const P=$("eP").value,F=$("eF").value,E=$("eE").value,g=GC.filter(r=>(!P||r.produtor_id===P)&&(!F||r.fazenda_id===F)&&(!E||r.estadio===E)).sort((a,b)=>a.fazenda.localeCompare(b.fazenda)||ORD.indexOf(a.estadio)-ORD.indexOf(b.estadio)||trOrd(a.tratamento)-trOrd(b.tratamento)||(a.amostra||1)-(b.amostra||1)||(a.foto||1)-(b.foto||1));
   const gg=GER.filter(r=>(!F||r.fazenda_id===F)&&(!P||fazById(r.fazenda_id)?.produtor_id===P)&&(!E||r.estadio===E));
   const pp=PF.filter(r=>(!F||r.fazenda_id===F)&&(!P||r.produtor_id===P)&&(!E||r.estadio===E));
+  const cc=FC.filter(r=>(!F||r.fazenda_id===F)&&(!P||r.produtor_id===P)&&(!E||r.estadio===E));
   $("edGc").innerHTML=`<tr><th>Foto</th><th class="tl">Fazenda</th><th class="tl">Estádio</th><th class="tl">Tratamento</th><th>Ponto · foto</th><th class="tl">Arquivo</th><th>Grau de cover</th><th class="tl">Data</th><th></th></tr>`+
-    [...gg.map(r=>({...r,kind:"geral",fazenda:fazById(r.fazenda_id)?.nome||""})),...pp.map(r=>({...r,kind:"plantas"})),...g].map(r=>`<tr data-gid="${esc(r.id)}" data-kind="${r.kind||""}"><td>${URL_[r.foto_path]?`<img class="thumb" src="${esc(URL_[r.foto_path])}" alt="">`:"–"}</td><td class="tl">${esc(r.fazenda)}</td><td class="tl">${esc(r.estadio)}</td>
-      <td class="tl">${r.kind==="geral"?"<b>Foto geral</b>":`<span class="dot" style="background:${COL[r.tratamento]}"></span>${esc(r.tratamento)}${r.kind==="plantas"?" · <b>plantas inteiras</b>":""}`}</td><td>${r.kind==="geral"?"–":`${r.kind==="plantas"?r.ponto||1:r.amostra||1} · ${r.foto||1}`}</td><td class="tl"><small>${esc(r.arquivo||"–")}</small></td><td>${r.kind==="plantas"?"–":fmt(r.cobertura_pct)+"%"}</td>
+    [...gg.map(r=>({...r,kind:"geral",fazenda:fazById(r.fazenda_id)?.nome||""})),...pp.map(r=>({...r,kind:"plantas"})),...cc.map(r=>({...r,kind:"comp"})),...g].map(r=>`<tr data-gid="${esc(r.id)}" data-kind="${r.kind||""}"><td>${URL_[r.foto_path]?`<img class="thumb" src="${esc(URL_[r.foto_path])}" alt="">`:"–"}</td><td class="tl">${esc(r.fazenda)}</td><td class="tl">${esc(r.estadio)}</td>
+      <td class="tl">${r.kind==="geral"?"<b>Foto geral</b>":`<span class="dot" style="background:${COL[r.tratamento]}"></span>${esc(r.tratamento)}${r.kind==="plantas"?" · <b>plantas inteiras</b>":r.kind==="comp"?` · <b>${r.tipo==="grupo"?"foto em grupo":"planta individual"}</b>`:""}`}</td><td>${r.kind==="geral"||r.kind==="comp"?"–":`${r.kind==="plantas"?r.ponto||1:r.amostra||1} · ${r.foto||1}`}</td><td class="tl"><small>${esc(r.arquivo||"–")}</small></td><td>${r.kind==="plantas"||r.kind==="comp"?"–":fmt(r.cobertura_pct)+"%"}</td>
       <td class="tl"><input type="date" data-gk="data" value="${esc(r.data||"")}"></td><td>${adm?`<button class="mini" type="button" data-delgc="${esc(r.id)}">Excluir</button>`:""}</td></tr>`).join("")||`<tr><td colspan="9">Nenhuma foto neste filtro.</td></tr>`;
 }
 $("edPl").addEventListener("input",e=>{const tr=e.target.closest("tr[data-id]");if(!tr)return;tr.classList.add("dirty");
@@ -374,14 +416,14 @@ $("edPl").addEventListener("input",e=>{const tr=e.target.closest("tr[data-id]");
   const n=$("edPl").querySelectorAll("tr.dirty").length;$("edSave").disabled=!n;$("edInfo").textContent=`${n} linha(s) alterada(s)`});
 $("edUndo").onclick=renderEditar;
 function evalSel(){const F=$("eF").value,E=$("eE").value;if(!F||!E)return null;const m=r=>r.fazenda_id===F&&r.estadio===E;
-  return{F,E,pl:PL.filter(m),gc:GC.filter(m),pf:PF.filter(m),ge:GER.filter(m)}}
+  return{F,E,pl:PL.filter(m),gc:GC.filter(m),pf:PF.filter(m),ge:GER.filter(m),fc:FC.filter(m)}}
 $("edDelAll").onclick=async()=>{const b=$("edDelAll");if(MODE==="demo")return toast("No modo de exemplo nada é salvo.",1);
   const S=evalSel();if(!S)return toast("Escolha a fazenda e o estádio da avaliação que quer excluir.",1);
-  const nF=S.gc.length+S.pf.length+S.ge.length;if(!S.pl.length&&!nF)return toast("Não há dados nesta fazenda e estádio.",1);
+  const nF=S.gc.length+S.pf.length+S.ge.length+S.fc.length;if(!S.pl.length&&!nF)return toast("Não há dados nesta fazenda e estádio.",1);
   if(b.dataset.sure!=="1"){b.dataset.sure="1";b.classList.add("sure");b.textContent=`Confirmar: apagar ${S.pl.length} medição(ões) e ${nF} foto(s) de ${fazById(S.F)?.nome||""} em ${S.E}`;return}
   b.disabled=true;
-  try{for(const t of["plantas","fotos_cobertura","fotos_plantas","fotos_gerais"]){const{error}=await SB.from(t).delete().eq("fazenda_id",S.F).eq("estadio",S.E);if(error)throw error}
-    const paths=[...S.gc,...S.pf,...S.ge].flatMap(r=>[r.foto_path,r.mapa_path]).filter(Boolean);for(let i=0;i<paths.length;i+=100)await SB.storage.from("fotos").remove(paths.slice(i,i+100));
+  try{for(const t of["plantas","fotos_cobertura","fotos_plantas","fotos_gerais","fotos_comparacao"]){const{error}=await SB.from(t).delete().eq("fazenda_id",S.F).eq("estadio",S.E);if(error)throw error}
+    const paths=[...S.gc,...S.pf,...S.ge,...S.fc].flatMap(r=>[r.foto_path,r.mapa_path]).filter(Boolean);for(let i=0;i<paths.length;i+=100)await SB.storage.from("fotos").remove(paths.slice(i,i+100));
     toast(`Avaliação excluída: ${fazById(S.F)?.nome||""} · ${S.E}.`);await loadDB()}catch(err){toast("Não foi possível excluir: "+err.message,1)}finally{b.disabled=false}};
 $("edSave").onclick=async()=>{if(MODE==="demo")return toast("No modo de exemplo nada é salvo.",1);
   const trs=[...$("edPl").querySelectorAll("tr.dirty")];if($("edPl").querySelector("input.err"))return toast("Há altura fora do esperado (0 a 250 cm).",1);
@@ -398,7 +440,7 @@ $("edGen").onclick=async()=>{if(MODE==="demo")return toast("No modo de exemplo n
   toast("Linhas criadas. Preencha e salve.");await loadDB()};
 $("edPl").addEventListener("click",async e=>{const b=e.target.closest("[data-delpl]");if(!b)return;if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Confirmar";return}
   if(MODE==="demo")return toast("No modo de exemplo nada é salvo.",1);const{error}=await SB.from("plantas").delete().eq("id",b.dataset.delpl);if(error)return toast(error.message,1);toast("Medição excluída.");await loadDB()});
-const KIND={"":{tab:"fotos_cobertura",arr:()=>GC},geral:{tab:"fotos_gerais",arr:()=>GER},plantas:{tab:"fotos_plantas",arr:()=>PF}};
+const KIND={"":{tab:"fotos_cobertura",arr:()=>GC},geral:{tab:"fotos_gerais",arr:()=>GER},plantas:{tab:"fotos_plantas",arr:()=>PF},comp:{tab:"fotos_comparacao",arr:()=>FC}};
 $("edGc").addEventListener("change",async e=>{const tr=e.target.closest("tr[data-gid]");if(!tr||e.target.dataset.gk!=="data")return;if(MODE==="demo")return toast("No modo de exemplo nada é salvo.",1);
   const K=KIND[tr.dataset.kind||""],r=K.arr().find(x=>String(x.id)===tr.dataset.gid),dt=e.target.value||null;
   const{error}=await SB.from(K.tab).update({data:dt,dae:daysBetween(fazById(r.fazenda_id)?.data_emergencia,dt),atualizado_em:new Date().toISOString()}).eq("id",r.id);

@@ -144,3 +144,7 @@ button.del.sure,.mini.danger.sure{background:#c0392b!important;color:#fff!import
 .bg .hd .adds{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .bg .hd button.add{min-height:36px;padding:0 10px;border:1px solid #fff9;border-radius:6px;background:#ffffff26;color:#fff;font:600 13px Barlow,system-ui,sans-serif;cursor:pointer}
 .bg .hd button.add:hover,.bg .hd button.add:focus-visible{background:#ffffff4d}
+/* v12: quadros de 1 foto por tratamento */
+.cmp.tallcmp{aspect-ratio:3/4;max-width:640px;background:#1f2b23}.cmp.tallcmp .ly>*{object-fit:contain}
+.cmp .nfc{display:grid;place-items:center;height:100%;color:#fff;font-size:14px}
+.cell.tall[data-ct]{aspect-ratio:3/4;min-height:0}

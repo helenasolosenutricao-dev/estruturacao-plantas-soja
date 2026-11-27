@@ -57,7 +57,7 @@ create table if not exists public.tratamentos (
   id   smallint primary key,
   nome text not null unique
 );
-insert into public.tratamentos values (1,'Maxcel'),(2,'Impulse'),(3,'Stay Up'),(4,'Controle')
+insert into public.tratamentos values (1,'Maxcel'),(3,'Stay Up'),(4,'Controle')
 on conflict do nothing;
 
 -- ---------- Avaliações (1 linha = ponto × tratamento × estádio) -------

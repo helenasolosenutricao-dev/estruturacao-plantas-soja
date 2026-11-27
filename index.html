@@ -6,7 +6,7 @@
 <title>Estruturação de Plantas · Soja</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=9">
+<link rel="stylesheet" href="style.css?v=12">
 </head>
 <body>
 <header class="band"><div class="wrap">
@@ -136,6 +136,27 @@
       <span class="tag" id="tgA" style="left:10px"></span><span class="tag" id="tgB" style="right:10px"></span></div>
     <input type="range" id="rg" min="0" max="100" value="50" aria-label="Posição da comparação">
   </div>
+  <div class="card sect">
+    <h2>Comparação · planta individual</h2>
+    <p class="h">Uma foto da planta individual por tratamento, lado a lado. Usa o produtor, a fazenda e o estádio escolhidos na comparação acima: <b id="compI_ctx"></b></p>
+    <div class="bgwrap"><div class="bg" id="compI_grid"></div></div>
+    <h3 style="margin:26px 0 8px">Deslize para comparar</h3>
+    <div class="formgrid"><label class="f">Esquerda<select id="compI_A"></select></label><label class="f">Direita<select id="compI_B"></select></label></div>
+    <div class="cmp big tallcmp"><div class="ly" id="compI_lyB"></div><div class="ly top" id="compI_lyA"></div><div class="hand" id="compI_hand"></div>
+      <span class="tag" id="compI_tgA" style="left:10px"></span><span class="tag" id="compI_tgB" style="right:10px"></span></div>
+    <input type="range" id="compI_rg" min="0" max="100" value="50" aria-label="Posição da comparação">
+  </div>
+  <div class="card sect">
+    <h2>Comparação · fotos em grupo</h2>
+    <p class="h">Uma foto do grupo de plantas por tratamento, lado a lado. Usa o produtor, a fazenda e o estádio escolhidos na comparação acima: <b id="compG_ctx"></b></p>
+    <div class="bgwrap"><div class="bg" id="compG_grid"></div></div>
+    <h3 style="margin:26px 0 8px">Deslize para comparar</h3>
+    <div class="formgrid"><label class="f">Esquerda<select id="compG_A"></select></label><label class="f">Direita<select id="compG_B"></select></label></div>
+    <div class="cmp big tallcmp"><div class="ly" id="compG_lyB"></div><div class="ly top" id="compG_lyA"></div><div class="hand" id="compG_hand"></div>
+      <span class="tag" id="compG_tgA" style="left:10px"></span><span class="tag" id="compG_tgB" style="right:10px"></span></div>
+    <input type="range" id="compG_rg" min="0" max="100" value="50" aria-label="Posição da comparação">
+  </div>
+  <input type="file" id="compFile" accept="image/*" hidden>
 </div></main></section>
 <div class="lb" id="lb" hidden><figure><img id="lbImg" alt=""><figcaption id="lbCap"></figcaption></figure></div>
 
@@ -240,6 +261,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="app.js?v=11"></script>
+<script src="app.js?v=12"></script>
 </body>
 </html>
