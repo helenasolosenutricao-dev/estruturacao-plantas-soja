@@ -6,7 +6,7 @@
 <title>Estruturação de Plantas · Soja</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=7">
+<link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
 <header class="band"><div class="wrap">
@@ -96,15 +96,15 @@
 <section id="tab-fotos" class="tab" hidden><main class="band"><div class="wrap">
   <div class="card" id="upCard">
     <h2>Enviar fotos · Ground Cover por ponto e plantas inteiras</h2>
-    <p class="h">Ground Cover: selecione de uma vez as fotos dos pontos 1, 2 e 3 do tratamento. Cada foto passa pelo falso NDVI e o grau de cover do tratamento é a média dos pontos. Tire a foto de cima (zenital), sempre na mesma altura. Plantas inteiras: uma foto por ponto, com as 3 plantas arrancadas sobre o pano e a trena, que entra na comparação lado a lado.</p>
+    <p class="h">Ground Cover: selecione de uma vez as até 9 fotos do tratamento (3 fotos em cada um dos pontos 1, 2 e 3). Em ordem de nome, as fotos 1–3 vão para o ponto 1, 4–6 para o ponto 2 e 7–9 para o ponto 3; confira e ajuste o ponto e o nº da foto embaixo de cada uma. Cada foto passa pelo falso NDVI e o grau de cover do tratamento é a média das fotos. Tire a foto de cima (zenital), sempre na mesma altura. Plantas inteiras: até 3 fotos por ponto, com as 3 plantas arrancadas sobre o pano e a trena, que entra na comparação lado a lado.</p>
     <div class="formgrid">
       <label class="f">Produtor<select id="uP"></select></label>
       <label class="f">Fazenda<select id="uF"></select></label>
-      <label class="f">Tipo de foto<select id="uK"><option value="am">Ground Cover do tratamento (pontos 1 a 3)</option><option value="plantas">Plantas inteiras (pontos 1 a 3)</option><option value="geral">Foto geral (todas as parcelas)</option></select></label>
+      <label class="f">Tipo de foto<select id="uK"><option value="am">Ground Cover do tratamento (3 pontos × 3 fotos)</option><option value="plantas">Plantas inteiras (3 pontos × 3 fotos)</option><option value="geral">Foto geral (todas as parcelas)</option></select></label>
       <label class="f" id="uTw">Tratamento<select id="uT"></select></label>
       <label class="f">Estádio<select id="uE"></select></label>
       <label class="f">Data das fotos<input type="date" id="uD"></label>
-      <label class="f"><span id="uFl">Fotos (pontos 1 a 3)</span><input type="file" id="uFile" accept="image/*" multiple></label>
+      <label class="f"><span id="uFl">Fotos (até 9: 3 por ponto)</span><input type="file" id="uFile" accept="image/*" multiple></label>
     </div>
     <div id="anal" hidden>
       <div class="res">
@@ -127,9 +127,10 @@
     <div id="geral" class="geral" hidden></div>
     <div class="trsel" id="trSel"></div>
     <div class="bgwrap"><div class="bg" id="bigGrid"></div></div>
+    <input type="file" id="quickFile" accept="image/*" multiple hidden>
     <h3 style="margin:26px 0 8px">Deslize para comparar</h3>
     <div class="formgrid"><label class="f">Esquerda<select id="pA"></select></label><label class="f">Direita<select id="pB"></select></label>
-      <label class="f">Ponto<select id="pS"><option value="1">Ponto 1</option><option value="2">Ponto 2</option><option value="3">Ponto 3</option></select></label>
+      <label class="f">Ponto e foto<select id="pS"><option value="1-1">Ponto 1 · foto 1</option><option value="1-2">Ponto 1 · foto 2</option><option value="1-3">Ponto 1 · foto 3</option><option value="2-1">Ponto 2 · foto 1</option><option value="2-2">Ponto 2 · foto 2</option><option value="2-3">Ponto 2 · foto 3</option><option value="3-1">Ponto 3 · foto 1</option><option value="3-2">Ponto 3 · foto 2</option><option value="3-3">Ponto 3 · foto 3</option></select></label>
       <label class="f">Mostrar<select id="pMode"><option value="foto">Foto original</option><option value="mapa">Falso NDVI</option><option value="mix">Esquerda foto · direita NDVI</option></select></label></div>
     <div class="cmp big" id="cmp"><div class="ly" id="lyB"></div><div class="ly top" id="lyA"></div><div class="hand" id="hand"></div>
       <span class="tag" id="tgA" style="left:10px"></span><span class="tag" id="tgB" style="right:10px"></span></div>
@@ -239,6 +240,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="app.js?v=7"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>

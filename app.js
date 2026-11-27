@@ -3,7 +3,7 @@
 const TR=["Maxcel","Impulse","Stay Up","Controle"];
 const COL={"Maxcel":"#1e8a42","Impulse":"#2f6db5","Stay Up":"#c7861b","Controle":"#8c918a"};
 const ORD=["VE","VC","V1","V2","V3","V4","V5","V6","V7","V8","V9","V10","R1","R2","R3","R4","R5","R6","R7","R8"];
-const NPL=5,NPT=3;
+const NPL=5,NPT=3,NFT=3;
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const $=id=>document.getElementById(id);
 const fmt=(v,d=1)=>v==null||isNaN(v)?"–":Number(v).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -45,7 +45,7 @@ function demo(){
     for(const t of TR)for(const[e,d]of ST){const ramp=e==="V4"?0.3:1,[eh,eg]=ef[t].map(x=>x*ramp),[bh,bg]=base[e];
       for(let pt=1;pt<=NPT;pt++){const ps=1+nr()*0.04;for(let k=1;k<=NPL;k++)PL.push({id:++id,produtor_id:p.id,produtor:p.nome,fazenda_id:f.id,fazenda:f.nome,municipio:f.municipio,uf:f.uf,espacamento_cm:f.espacamento_cm,
         tratamento:t,estadio:e,dae:d,ponto:pt,planta:k,altura_cm:+(bh*sh*ps*(1+eh)*(1+nr()*0.08)).toFixed(1),estande_pl_m:Math.max(6,Math.round(stand*ps*(1+nr()*0.15)))})}
-      for(let a=1;a<=NPT;a++)GC.push({id:"g"+id+"-"+a,produtor_id:p.id,produtor:p.nome,fazenda_id:f.id,fazenda:f.nome,tratamento:t,estadio:e,amostra:a,dae:d,cobertura_pct:+Math.min(98,bg*sg*(1+eg)*(1+nr()*0.07)).toFixed(1)})}}
+      for(let a=1;a<=NPT;a++)for(let fo=1;fo<=NFT;fo++)GC.push({id:"g"+id+"-"+a+"-"+fo,foto:fo,arquivo:`P${a}_foto${fo}.jpg`,produtor_id:p.id,produtor:p.nome,fazenda_id:f.id,fazenda:f.nome,tratamento:t,estadio:e,amostra:a,dae:d,cobertura_pct:+Math.min(98,bg*sg*(1+eg)*(1+nr()*0.07)).toFixed(1)})}}
 }
 
 /* ====================== conexão e carga ====================== */
@@ -111,7 +111,7 @@ function renderPainel(){
   $("title").textContent=!isNaN(dgc)?`Maxcel ${dgc>=0?"fechou":"abriu"} ${fmt(Math.abs(dgc),0)}% ${dgc>=0?"mais":"menos"} a entrelinha que o Controle em ${E}`:
     !isNaN(dh)?`Maxcel com altura ${fmt(Math.abs(dh),0)}% ${dh>=0?"maior":"menor"} que o Controle em ${E}`:"Estruturação de plantas de soja";
   /* KPIs */
-  const K=[["Grau de cover (média das amostras)",ge,"cobertura_pct","%",1],["Altura média",pe,"altura_cm","cm",1],["Estande",pe,"estande_pl_m","pl/m",1],["População",pe,"pop_ha","mil pl/ha",0]];
+  const K=[["Grau de cover (média das fotos)",ge,"cobertura_pct","%",1],["Altura média",pe,"altura_cm","cm",1],["Estande",pe,"estande_pl_m","pl/m",1],["População",pe,"pop_ha","mil pl/ha",0]];
   $("kpis").innerHTML=K.map(([n,a,k,u,d])=>{let m=meanT(a,"Maxcel",k),c=meanT(a,"Controle",k),x=dlt(a,"Maxcel",k);if(k==="pop_ha"){m/=1000;c/=1000}
     return`<div class="k"><div class="l">${n} · Maxcel · ${esc(E)}</div><div class="v">${fmt(m,d)} <span style="font-size:18px">${u}</span></div>
     <div class="d ${cls(x)}">${pct(x)} vs Controle</div><div class="l">Controle: ${fmt(c,d)} ${u}</div></div>`}).join("");
@@ -127,10 +127,10 @@ function renderPainel(){
   /* grau de cover por amostra */
   $("gcbT").textContent=`Grau de cover em ${E}`;
   const gs=TR.map(t=>st(ge.filter(r=>r.tratamento===t).map(r=>r.cobertura_pct)));
-  const gpts=Object.values(by(ge,r=>r.fazenda_id+"|"+(r.amostra||1))).map(a=>({type:"line",showLine:false,label:"Amostra",pointRadius:4,pointBackgroundColor:"#16231acc",pointBorderColor:"#fff",order:1,
+  const gpts=Object.values(by(ge,r=>r.fazenda_id+"|"+(r.amostra||1)+"|"+(r.foto||1))).map(a=>({type:"line",showLine:false,label:"Foto",pointRadius:4,pointBackgroundColor:"#16231acc",pointBorderColor:"#fff",order:1,
     data:TR.map(t=>a.find(r=>r.tratamento===t)?.cobertura_pct??null)}));
   mk("cGCb",{type:"bar",plugins:[errPlug],data:{labels:TR,datasets:[{data:gs.map(s=>isNaN(s.m)?null:+s.m.toFixed(1)),sd:gs.map(s=>s.sd),backgroundColor:TR.map(t=>COL[t]+"cc"),borderRadius:6,order:2},...gpts]},
-    options:{maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{filter:i=>i.datasetIndex===0,callbacks:{label:c=>`grau de cover ${fmt(c.raw)}% ± ${fmt(gs[c.dataIndex].sd)} (n=${gs[c.dataIndex].n} amostras)`}}},
+    options:{maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{filter:i=>i.datasetIndex===0,callbacks:{label:c=>`grau de cover ${fmt(c.raw)}% ± ${fmt(gs[c.dataIndex].sd)} (n=${gs[c.dataIndex].n} fotos)`}}},
       scales:{x:{grid:{display:false}},y:{beginAtZero:true,max:100,title:{display:true,text:"% de fechamento"}}}}});
   /* comparação por local */
   renderLoc(pe,ge,E);
@@ -208,46 +208,47 @@ function analyze(s,lim){
     const c=rampAt(isV?Math.max(gli,0.12):Math.min(gli,0.06));o[i]=c[0];o[i+1]=c[1];o[i+2]=c[2];o[i+3]=255}
   cn.getContext("2d").putImageData(out,0,0);s.cov=veg/(d.length/4)*100;s.idx=veg?sum/veg:0;s.lim=lim}
 function analisarTodas(){const lim=+$("lim").value;$("anal").classList.toggle("noNdvi",isPlantas());$("limOut").textContent=lim;SAMP.forEach(s=>{analyze(s,lim);s.el.querySelector("b").textContent=fmt(s.cov)+"%"});
-  const S=st(SAMP.map(s=>s.cov));$("covOut").textContent=fmt(S.m)+"%";$("covSd").textContent=SAMP.length>1?`± ${fmt(S.sd)} (desvio) · CV ${fmt(S.cv)}% · ${SAMP.length} pontos`:"1 ponto"}
+  const S=st(SAMP.map(s=>s.cov));$("covOut").textContent=fmt(S.m)+"%";$("covSd").textContent=SAMP.length>1?`± ${fmt(S.sd)} (desvio) · CV ${fmt(S.cv)}% · ${SAMP.length} fotos`:"1 foto"}
 const loadImg=f=>new Promise((ok,no)=>{const im=new Image();im.onload=()=>ok(im);im.onerror=no;im.src=URL.createObjectURL(f)});
 const isGeral=()=>$("uK").value==="geral",isPlantas=()=>$("uK").value==="plantas",single=()=>isGeral();
-$("uK").addEventListener("change",()=>{$("uTw").hidden=isGeral();$("uFl").textContent=isGeral()?"Foto geral (1 foto)":isPlantas()?"Fotos das plantas inteiras (pontos 1 a 3)":"Fotos (pontos 1 a 3)";$("uFile").multiple=!single();
+$("uK").addEventListener("change",()=>{$("uTw").hidden=isGeral();$("uFl").textContent=isGeral()?"Foto geral (1 foto)":isPlantas()?"Fotos das plantas inteiras (até 9: 3 por ponto)":"Fotos (até 9: 3 por ponto)";$("uFile").multiple=!single();
   $("saveFoto").textContent=isGeral()?"Salvar foto geral":isPlantas()?"Salvar fotos das plantas":"Salvar pontos";$("uFile").value="";SAMP=[];$("samp").innerHTML="";$("anal").hidden=true});
-$("uFile").addEventListener("change",async e=>{const lim5=single()?1:5,files=[...e.target.files].sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true})).slice(0,lim5);if(!files.length)return;
-  if(e.target.files.length>lim5)toast(single()?"Aqui só a primeira foto é usada.":"Só as 5 primeiras fotos foram usadas.",1);
+$("uFile").addEventListener("change",async e=>{const lim5=single()?1:NPT*NFT,files=[...e.target.files].sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true})).slice(0,lim5);if(!files.length)return;
+  if(e.target.files.length>lim5)toast(single()?"Aqui só a primeira foto é usada.":`Só as ${NPT*NFT} primeiras fotos foram usadas.`,1);
   SAMP=[];$("samp").innerHTML="";
   for(const[i,f]of files.entries()){let img;try{img=await loadImg(f)}catch{toast(`Não consegui abrir ${f.name}.`,1);continue}
-    const el=document.createElement("div");el.className="smp";el.innerHTML=`<div class="two"><canvas></canvas><canvas></canvas></div><div class="cap"><label${single()?' hidden':''}>Ponto <select>${[1,2,3,4,5].map(n=>`<option${n===i+1?" selected":""}>${n}</option>`).join("")}</select></label><b>–</b></div><div class="cap" style="padding-top:0"><small>${esc(f.name)}</small></div>`;
-    const[co,cn]=el.querySelectorAll("canvas");$("samp").append(el);SAMP.push({file:f,img,el,co,cn,sel:el.querySelector("select")})}
+    const mP=f.name.match(/(?:^|[^a-z])(?:p|ponto)[\s_.-]*0?([1-9])/i),mF=f.name.match(/(?:^|[^a-z])(?:f|foto)[\s_.-]*0?([1-9])/i),dP=mP?+mP[1]:Math.floor(i/NFT)+1,dF=mF?+mF[1]:i%NFT+1;
+    const el=document.createElement("div");el.className="smp";el.innerHTML=`<div class="two"><canvas></canvas><canvas></canvas></div><div class="cap"><span class="pf"${single()?' hidden':''}><label>Ponto <select>${[1,2,3,4,5].map(n=>`<option${n===dP?" selected":""}>${n}</option>`).join("")}</select></label><label>Foto <select class="fsel">${[1,2,3,4,5].map(n=>`<option${n===dF?" selected":""}>${n}</option>`).join("")}</select></label></span><b>–</b></div><div class="cap" style="padding-top:0"><small>${esc(f.name)}</small></div>`;
+    const[co,cn]=el.querySelectorAll("canvas");$("samp").append(el);SAMP.push({file:f,img,el,co,cn,sel:el.querySelector("select"),fsel:el.querySelector(".fsel")})}
   $("anal").hidden=!SAMP.length;analisarTodas()});
 $("lim").addEventListener("input",analisarTodas);
 const slug=s=>String(s).normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-");
 $("saveFoto").addEventListener("click",async()=>{
   if(MODE==="demo")return toast("No modo de exemplo nada é salvo.",1);
   const fid=$("uF").value,t=$("uT").value,e=$("uE").value,dt=$("uD").value||null;if(!fid||!SAMP.length)return toast("Escolha fazenda, tratamento, estádio e as fotos.",1);
-  if(isPlantas()){const f=fazById(fid),nums=SAMP.map(s=>+s.sel.value);if(new Set(nums).size!==nums.length)return toast("Duas fotos estão com o mesmo número de ponto.",1);$("saveFoto").disabled=true;
-    try{for(const s of SAMP){const a=+s.sel.value,p=`cobertura/${fid}/${slug(e)}/${slug(t)}-p${a}-plantas.jpg`;
+  if(isPlantas()){const f=fazById(fid),nums=SAMP.map(s=>s.sel.value+"-"+s.fsel.value);if(new Set(nums).size!==nums.length)return toast("Duas fotos estão com o mesmo ponto e número de foto.",1);$("saveFoto").disabled=true;
+    try{for(const s of SAMP){const a=+s.sel.value,fo=+s.fsel.value,p=`cobertura/${fid}/${slug(e)}/${slug(t)}-p${a}-f${fo}-plantas.jpg`;
         const jpg=await new Promise(r=>s.co.toBlob(r,"image/jpeg",0.9));const{error:e1}=await SB.storage.from("fotos").upload(p,jpg,{upsert:true,contentType:"image/jpeg"});if(e1)throw e1;
-        const{error}=await SB.from("fotos_plantas").upsert({fazenda_id:fid,tratamento_id:TR.indexOf(t)+1,estadio:e,ponto:a,data:dt,dae:daysBetween(f?.data_emergencia,dt),foto_path:p,atualizado_em:new Date().toISOString()},{onConflict:"fazenda_id,tratamento_id,estadio,ponto"});if(error)throw error}
-      toast(`Plantas inteiras salvas · ${t} · ${e} · ${SAMP.length} ponto(s).`);$("uFile").value="";$("anal").hidden=true;SAMP=[];$("samp").innerHTML="";
+        const{error}=await SB.from("fotos_plantas").upsert({fazenda_id:fid,tratamento_id:TR.indexOf(t)+1,estadio:e,ponto:a,foto:fo,arquivo:s.file.name,data:dt,dae:daysBetween(f?.data_emergencia,dt),foto_path:p,atualizado_em:new Date().toISOString()},{onConflict:"fazenda_id,tratamento_id,estadio,ponto,foto"});if(error)throw error}
+      toast(`Plantas inteiras salvas · ${t} · ${e} · ${SAMP.length} foto(s).`);$("uFile").value="";$("anal").hidden=true;SAMP=[];$("samp").innerHTML="";
       const pid=$("uP").value;await loadDB();$("cP").value=pid;setSel($("cF"),opts(fazOpts(pid)));$("cF").value=fid;fillSelects();$("cE").value=e;renderFotos();
     }catch(err){toast("Não foi possível salvar: "+err.message,1)}finally{$("saveFoto").disabled=false}return}
   if(isGeral()){const s=SAMP[0],f=fazById(fid),base=`cobertura/${fid}/${slug(e)}/geral`;$("saveFoto").disabled=true;
     try{const jpg=await new Promise(r=>s.co.toBlob(r,"image/jpeg",0.9)),png=await new Promise(r=>s.cn.toBlob(r,"image/png"));
       for(const[p,b,ct]of[[base+".jpg",jpg,"image/jpeg"],[base+"-ndvi.png",png,"image/png"]]){const{error}=await SB.storage.from("fotos").upload(p,b,{upsert:true,contentType:ct});if(error)throw error}
       const{error}=await SB.from("fotos_gerais").upsert({fazenda_id:fid,estadio:e,data:dt,dae:daysBetween(f?.data_emergencia,dt),foto_path:base+".jpg",mapa_path:base+"-ndvi.png",
-        cobertura_pct:+s.cov.toFixed(2),limiar:s.lim,atualizado_em:new Date().toISOString()},{onConflict:"fazenda_id,estadio"});if(error)throw error;
+        cobertura_pct:+s.cov.toFixed(2),limiar:s.lim,arquivo:s.file.name,atualizado_em:new Date().toISOString()},{onConflict:"fazenda_id,estadio"});if(error)throw error;
       toast(`Foto geral salva · ${e} · ${fmt(s.cov)}% de cobertura.`);$("uFile").value="";$("anal").hidden=true;SAMP=[];$("samp").innerHTML="";
       const pid=$("uP").value;await loadDB();$("cP").value=pid;setSel($("cF"),opts(fazOpts(pid)));$("cF").value=fid;fillSelects();$("cE").value=e;renderFotos();
     }catch(err){toast("Não foi possível salvar: "+err.message,1)}finally{$("saveFoto").disabled=false}return}
-  const nums=SAMP.map(s=>+s.sel.value);if(new Set(nums).size!==nums.length)return toast("Duas fotos estão com o mesmo número de ponto.",1);
+  const nums=SAMP.map(s=>s.sel.value+"-"+s.fsel.value);if(new Set(nums).size!==nums.length)return toast("Duas fotos estão com o mesmo ponto e número de foto.",1);
   const f=fazById(fid),trId=TR.indexOf(t)+1;$("saveFoto").disabled=true;
-  try{for(const s of SAMP){const a=+s.sel.value,base=`cobertura/${fid}/${slug(e)}/${slug(t)}-a${a}`;
+  try{for(const s of SAMP){const a=+s.sel.value,fo=+s.fsel.value,base=`cobertura/${fid}/${slug(e)}/${slug(t)}-p${a}-f${fo}`;
       const jpg=await new Promise(r=>s.co.toBlob(r,"image/jpeg",0.88)),png=await new Promise(r=>s.cn.toBlob(r,"image/png"));
       for(const[p,b,ct]of[[base+".jpg",jpg,"image/jpeg"],[base+"-ndvi.png",png,"image/png"]]){const{error}=await SB.storage.from("fotos").upload(p,b,{upsert:true,contentType:ct});if(error)throw error}
-      const{error}=await SB.from("fotos_cobertura").upsert({fazenda_id:fid,tratamento_id:trId,estadio:e,amostra:a,data:dt,dae:daysBetween(f?.data_emergencia,dt),foto_path:base+".jpg",mapa_path:base+"-ndvi.png",
-        cobertura_pct:+s.cov.toFixed(2),indice_medio:+s.idx.toFixed(4),limiar:s.lim,atualizado_em:new Date().toISOString()},{onConflict:"fazenda_id,tratamento_id,estadio,amostra"});if(error)throw error}
-    toast(`Salvo: ${t} · ${e} · ${SAMP.length} ponto(s) · grau de cover ${$("covOut").textContent}.`);$("uFile").value="";$("anal").hidden=true;SAMP=[];$("samp").innerHTML="";
+      const{error}=await SB.from("fotos_cobertura").upsert({fazenda_id:fid,tratamento_id:trId,estadio:e,amostra:a,foto:fo,arquivo:s.file.name,data:dt,dae:daysBetween(f?.data_emergencia,dt),foto_path:base+".jpg",mapa_path:base+"-ndvi.png",
+        cobertura_pct:+s.cov.toFixed(2),indice_medio:+s.idx.toFixed(4),limiar:s.lim,atualizado_em:new Date().toISOString()},{onConflict:"fazenda_id,tratamento_id,estadio,amostra,foto"});if(error)throw error}
+    toast(`Salvo: ${t} · ${e} · ${SAMP.length} foto(s) · grau de cover ${$("covOut").textContent}.`);$("uFile").value="";$("anal").hidden=true;SAMP=[];$("samp").innerHTML="";
     const pid=$("uP").value;await loadDB();$("cP").value=pid;setSel($("cF"),opts(fazOpts(pid)));$("cF").value=fid;fillSelects();$("cE").value=e;renderFotos();
   }catch(err){toast("Não foi possível salvar: "+err.message,1)}finally{$("saveFoto").disabled=false}});
 
@@ -268,32 +269,44 @@ async function delFoto(b){if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textCont
   const K=KIND[b.dataset.delk||""],r=K.arr().find(x=>String(x.id)===b.dataset.delid);if(!r)return;b.disabled=true;
   const{error}=await SB.from(K.tab).delete().eq("id",r.id);if(error){b.disabled=false;return toast(error.message,1)}
   await SB.storage.from("fotos").remove([r.foto_path,r.mapa_path].filter(Boolean));toast("Foto excluída.");await loadDB()}
+const canUp=()=>MODE==="demo"||PAPEL==="admin"||PAPEL==="avaliador";
+let QUICK=null;
+function quickAdd(kind,t){if(!$("cF").value||!$("cE").value)return toast("Escolha produtor, fazenda e estádio na comparação.",1);
+  QUICK={kind,t};$("quickFile").value="";$("quickFile").click()}
+$("quickFile").addEventListener("change",e=>{const fs=[...e.target.files];if(!fs.length||!QUICK)return;
+  const fz=fazById($("cF").value);$("uP").value=fz?.produtor_id||"";setSel($("uF"),opts(fazOpts($("uP").value)));$("uF").value=$("cF").value;
+  $("uK").value=QUICK.kind;$("uK").dispatchEvent(new Event("change"));$("uT").value=QUICK.t;
+  if(![...$("uE").options].some(o=>o.value===$("cE").value))$("uE").add(new Option($("cE").value,$("cE").value));$("uE").value=$("cE").value;
+  const dt=new DataTransfer();fs.forEach(f=>dt.items.add(f));$("uFile").files=dt.files;$("uFile").dispatchEvent(new Event("change"));
+  setTimeout(()=>{$("upCard").scrollIntoView({behavior:"smooth",block:"start"});toast(`${fs.length} foto(s) de ${QUICK.t} carregadas. Confira ponto e nº da foto e clique em Salvar.`)},400)});
 function renderFotos(){
   renderTrSel();const mode=$("cMode").value,ts=selTR();
   const G=GER.find(g=>g.fazenda_id===$("cF").value&&g.estadio===$("cE").value),gu=G&&URL_[mode==="mapa"?G.mapa_path:G.foto_path];
   const all=GC.filter(r=>r.fazenda_id===$("cF").value&&r.estadio===$("cE").value),ms=st(all.map(r=>r.cobertura_pct));
   $("geral").hidden=!G;if(G)$("geral").innerHTML=`<div class="gcap"><h3>Foto geral · todas as parcelas</h3>${delB("geral",G.id,1)}<span>cobertura na foto geral <b>${fmt(G.cobertura_pct)}%</b></span>${ms.n?`<span>média das amostras de todos os tratamentos <b>${fmt(ms.m)}%</b></span>`:""}</div>
     ${gu?`<div class="gimg" data-geral="1"><img src="${esc(gu)}" alt="Foto geral"></div>`:""}`;$("bigGrid").style.setProperty("--n",Math.max(ts.length,1));
-  const nA=Math.max(NPT,...GC.filter(r=>r.fazenda_id===$("cF").value&&r.estadio===$("cE").value).map(r=>r.amostra||1));
-  let h=ts.map(t=>{const S=st(gcRows(t).map(r=>r.cobertura_pct));return`<div class="hd" style="background:${COL[t]}"><span>${esc(t)}</span><b>${isNaN(S.m)?"–":fmt(S.m)+"%"}</b><span>${S.n?`grau de cover · ${S.n} ponto(s)${S.n>1?` · ± ${fmt(S.sd)}`:""}`:"sem fotos"}</span></div>`}).join("");
-  const pfs=PF.filter(r=>r.fazenda_id===$("cF").value&&r.estadio===$("cE").value),nP=pfs.length?Math.max(NPT,...pfs.map(r=>r.ponto||1)):0;
+  const gcs=GC.filter(r=>r.fazenda_id===$("cF").value&&r.estadio===$("cE").value),nA=Math.max(NPT,...gcs.map(r=>r.amostra||1)),nFo=Math.max(1,...gcs.map(r=>r.foto||1));
+  let h=ts.map(t=>{const S=st(gcRows(t).map(r=>r.cobertura_pct));return`<div class="hd" style="background:${COL[t]}"><span>${esc(t)}</span><b>${isNaN(S.m)?"–":fmt(S.m)+"%"}</b><span>${S.n?`grau de cover · ${S.n} foto(s)${S.n>1?` · ± ${fmt(S.sd)}`:""}`:"sem fotos"}</span>${canUp()?`<span class="adds"><button type="button" class="add" data-add="am" data-t="${esc(t)}">+ 9 fotos Ground Cover</button><button type="button" class="add" data-add="plantas" data-t="${esc(t)}">+ Plantas inteiras</button></span>`:""}</div>`}).join("");
+  const pfs=PF.filter(r=>r.fazenda_id===$("cF").value&&r.estadio===$("cE").value),nP=pfs.length?Math.max(NPT,...pfs.map(r=>r.ponto||1)):0,nPF=Math.max(1,...pfs.map(r=>r.foto||1));
+  const fn=r=>r&&r.arquivo?`<span class="fn" title="${esc(r.arquivo)}">${esc(r.arquivo)}</span>`:"";
   if(nP)h+=`<div class="sec">Plantas inteiras</div>`;
-  for(let a=1;a<=nP;a++)h+=ts.map(t=>{const pf=pfs.find(r=>r.tratamento===t&&(r.ponto||1)===a),u=pf&&URL_[pf.foto_path];
-    return u?`<div role="button" tabindex="0" class="cell tall" data-pl="${esc(t)}" data-pp="${a}"><img src="${esc(u)}" alt="Plantas inteiras ${esc(t)} ponto ${a}"><span class="bd">Plantas inteiras · ponto ${a}</span>${delB("plantas",pf.id)}</div>`:`<div class="cell tall" style="cursor:default"><span class="nf">${esc(t)} · plantas ponto ${a}: sem foto</span></div>`}).join("");
+  for(let a=1;a<=nP;a++)for(let fo=1;fo<=nPF;fo++)h+=ts.map(t=>{const pf=pfs.find(r=>r.tratamento===t&&(r.ponto||1)===a&&(r.foto||1)===fo),u=pf&&URL_[pf.foto_path];
+    return u?`<div role="button" tabindex="0" class="cell tall" data-pl="${esc(t)}" data-pp="${a}" data-pf="${fo}"><img src="${esc(u)}" alt="Plantas inteiras ${esc(t)} ponto ${a} foto ${fo}"><span class="bd">Ponto ${a} · foto ${fo}</span>${delB("plantas",pf.id)}${fn(pf)}</div>`:`<div class="cell tall" style="cursor:default"><span class="nf">${esc(t)} · plantas ponto ${a} · foto ${fo}: sem foto</span></div>`}).join("");
   if(nP)h+=`<div class="sec">Ground Cover (falso NDVI)</div>`;
-  for(let a=1;a<=nA;a++)h+=ts.map(t=>{const g=gcRows(t).find(r=>(r.amostra||1)===a),im=imgOf(g,mode);
-    return im?`<div role="button" tabindex="0" class="cell" data-t="${esc(t)}" data-a="${a}">${im}<span class="bd">Ponto ${a} · ${fmt(g.cobertura_pct)}%</span>${g.foto_path?delB("",g.id):""}</div>`:`<div class="cell" style="cursor:default"><span class="nf">${esc(t)} · ponto ${a}: sem foto</span></div>`}).join("");
+  for(let a=1;a<=nA;a++)for(let fo=1;fo<=nFo;fo++)h+=ts.map(t=>{const g=gcRows(t).find(r=>(r.amostra||1)===a&&(r.foto||1)===fo),im=imgOf(g,mode);
+    return im?`<div role="button" tabindex="0" class="cell" data-t="${esc(t)}" data-a="${a}" data-f="${fo}">${im}<span class="bd">Ponto ${a} · foto ${fo} · ${fmt(g.cobertura_pct)}%</span>${g.foto_path?delB("",g.id):""}${fn(g)}</div>`:`<div class="cell" style="cursor:default"><span class="nf">${esc(t)} · ponto ${a} · foto ${fo}: sem foto</span></div>`}).join("");
   $("bigGrid").innerHTML=h;
-  const pm=$("pMode").value,a=+$("pS").value,A=$("pA").value,B=$("pB").value,gA=gcRows(A).find(r=>(r.amostra||1)===a),gB=gcRows(B).find(r=>(r.amostra||1)===a);
-  const nf=t=>`<div style="display:grid;place-items:center;color:#fff;height:100%">${esc(t)} · ponto ${a}: sem foto</div>`;
+  const pm=$("pMode").value,[a,fo]=$("pS").value.split("-").map(Number),A=$("pA").value,B=$("pB").value,gA=gcRows(A).find(r=>(r.amostra||1)===a&&(r.foto||1)===(fo||1)),gB=gcRows(B).find(r=>(r.amostra||1)===a&&(r.foto||1)===(fo||1));
+  const nf=t=>`<div style="display:grid;place-items:center;color:#fff;height:100%">${esc(t)} · ponto ${a} · foto ${fo||1}: sem foto</div>`;
   $("lyA").innerHTML=imgOf(gA,pm==="mapa"?"mapa":"foto")||nf(A);$("lyB").innerHTML=imgOf(gB,pm==="foto"?"foto":"mapa")||nf(B);
   $("tgA").textContent=`${A}${gA?` · ${fmt(gA.cobertura_pct)}%`:""}`;$("tgA").style.background=COL[A];$("tgB").textContent=`${B}${gB?` · ${fmt(gB.cobertura_pct)}%`:""}`;$("tgB").style.background=COL[B];slide();
 }
 const slide=()=>{const v=$("rg").value;$("lyA").style.clipPath=`inset(0 ${100-v}% 0 0)`;$("hand").style.left=v+"%"};
-$("bigGrid").addEventListener("click",e=>{const db=e.target.closest("button.del");if(db){e.stopPropagation();return delFoto(db)}
-  const pc=e.target.closest(".cell[data-pl]");if(pc){$("lbImg").src=pc.querySelector("img").src;$("lbCap").textContent=`${pc.dataset.pl} · plantas inteiras · ponto ${pc.dataset.pp} · ${$("cE").value}`;$("lb").hidden=false;return}
-  const c=e.target.closest(".cell[data-t]");if(!c)return;const g=gcRows(c.dataset.t).find(r=>(r.amostra||1)===+c.dataset.a);
-  const u=URL_[$("cMode").value==="mapa"?g.mapa_path:g.foto_path];if(!u)return;$("lbImg").src=u;$("lbCap").textContent=`${g.tratamento} · ponto ${g.amostra||1} · ${g.estadio} · grau de cover ${fmt(g.cobertura_pct)}%`;$("lb").hidden=false});
+$("bigGrid").addEventListener("click",e=>{const ab=e.target.closest("button.add");if(ab){e.stopPropagation();return quickAdd(ab.dataset.add,ab.dataset.t)}
+  const db=e.target.closest("button.del");if(db){e.stopPropagation();return delFoto(db)}
+  const pc=e.target.closest(".cell[data-pl]");if(pc){$("lbImg").src=pc.querySelector("img").src;$("lbCap").textContent=`${pc.dataset.pl} · plantas inteiras · ponto ${pc.dataset.pp} · foto ${pc.dataset.pf} · ${$("cE").value}${pc.querySelector(".fn")?" · "+pc.querySelector(".fn").textContent:""}`;$("lb").hidden=false;return}
+  const c=e.target.closest(".cell[data-t]");if(!c)return;const g=gcRows(c.dataset.t).find(r=>(r.amostra||1)===+c.dataset.a&&(r.foto||1)===+(c.dataset.f||1));
+  const u=URL_[$("cMode").value==="mapa"?g.mapa_path:g.foto_path];if(!u)return;$("lbImg").src=u;$("lbCap").textContent=`${g.tratamento} · ponto ${g.amostra||1} · foto ${g.foto||1} · ${g.estadio}${g.arquivo?" · "+g.arquivo:""} · grau de cover ${fmt(g.cobertura_pct)}%`;$("lb").hidden=false});
 $("geral").addEventListener("click",e=>{const db=e.target.closest("button.del");if(db)return delFoto(db);if(!e.target.closest("[data-geral]"))return;$("lbImg").src=e.target.closest("[data-geral]").querySelector("img").src;$("lbCap").textContent="Foto geral · todas as parcelas";$("lb").hidden=false});
 $("lb").addEventListener("click",()=>{$("lb").hidden=true;$("lbImg").src=""});
 
@@ -345,13 +358,13 @@ function renderEditar(){
       ${adm?`<td><button class="mini" type="button" data-delpl="${esc(r.id)}">Excluir</button></td>`:""}</tr>`).join(""):`<tr><td colspan="11">Nenhuma medição neste filtro. Escolha fazenda e estádio e use “Criar linhas vazias”, ou envie a planilha.</td></tr>`);
   $("edInfo").textContent=`${rows.length} medição(ões)`;$("edSave").disabled=true;
   {const b=$("edDelAll"),S=evalSel();b.hidden=!adm;b.dataset.sure="";b.classList.remove("sure");b.textContent=S?`Excluir avaliação (${fazById(S.F)?.nome||""} · ${S.E})`:"Excluir avaliação (escolha fazenda e estádio)"}
-  const P=$("eP").value,F=$("eF").value,E=$("eE").value,g=GC.filter(r=>(!P||r.produtor_id===P)&&(!F||r.fazenda_id===F)&&(!E||r.estadio===E)).sort((a,b)=>a.fazenda.localeCompare(b.fazenda)||ORD.indexOf(a.estadio)-ORD.indexOf(b.estadio)||trOrd(a.tratamento)-trOrd(b.tratamento)||(a.amostra||1)-(b.amostra||1));
+  const P=$("eP").value,F=$("eF").value,E=$("eE").value,g=GC.filter(r=>(!P||r.produtor_id===P)&&(!F||r.fazenda_id===F)&&(!E||r.estadio===E)).sort((a,b)=>a.fazenda.localeCompare(b.fazenda)||ORD.indexOf(a.estadio)-ORD.indexOf(b.estadio)||trOrd(a.tratamento)-trOrd(b.tratamento)||(a.amostra||1)-(b.amostra||1)||(a.foto||1)-(b.foto||1));
   const gg=GER.filter(r=>(!F||r.fazenda_id===F)&&(!P||fazById(r.fazenda_id)?.produtor_id===P)&&(!E||r.estadio===E));
   const pp=PF.filter(r=>(!F||r.fazenda_id===F)&&(!P||r.produtor_id===P)&&(!E||r.estadio===E));
-  $("edGc").innerHTML=`<tr><th>Foto</th><th class="tl">Fazenda</th><th class="tl">Estádio</th><th class="tl">Tratamento</th><th>Ponto</th><th>Grau de cover</th><th class="tl">Data</th><th></th></tr>`+
+  $("edGc").innerHTML=`<tr><th>Foto</th><th class="tl">Fazenda</th><th class="tl">Estádio</th><th class="tl">Tratamento</th><th>Ponto · foto</th><th class="tl">Arquivo</th><th>Grau de cover</th><th class="tl">Data</th><th></th></tr>`+
     [...gg.map(r=>({...r,kind:"geral",fazenda:fazById(r.fazenda_id)?.nome||""})),...pp.map(r=>({...r,kind:"plantas"})),...g].map(r=>`<tr data-gid="${esc(r.id)}" data-kind="${r.kind||""}"><td>${URL_[r.foto_path]?`<img class="thumb" src="${esc(URL_[r.foto_path])}" alt="">`:"–"}</td><td class="tl">${esc(r.fazenda)}</td><td class="tl">${esc(r.estadio)}</td>
-      <td class="tl">${r.kind==="geral"?"<b>Foto geral</b>":`<span class="dot" style="background:${COL[r.tratamento]}"></span>${esc(r.tratamento)}${r.kind==="plantas"?" · <b>plantas inteiras</b>":""}`}</td><td>${r.kind==="geral"?"–":r.kind==="plantas"?r.ponto||1:r.amostra||1}</td><td>${r.kind==="plantas"?"–":fmt(r.cobertura_pct)+"%"}</td>
-      <td class="tl"><input type="date" data-gk="data" value="${esc(r.data||"")}"></td><td>${adm?`<button class="mini" type="button" data-delgc="${esc(r.id)}">Excluir</button>`:""}</td></tr>`).join("")||`<tr><td colspan="8">Nenhuma foto neste filtro.</td></tr>`;
+      <td class="tl">${r.kind==="geral"?"<b>Foto geral</b>":`<span class="dot" style="background:${COL[r.tratamento]}"></span>${esc(r.tratamento)}${r.kind==="plantas"?" · <b>plantas inteiras</b>":""}`}</td><td>${r.kind==="geral"?"–":`${r.kind==="plantas"?r.ponto||1:r.amostra||1} · ${r.foto||1}`}</td><td class="tl"><small>${esc(r.arquivo||"–")}</small></td><td>${r.kind==="plantas"?"–":fmt(r.cobertura_pct)+"%"}</td>
+      <td class="tl"><input type="date" data-gk="data" value="${esc(r.data||"")}"></td><td>${adm?`<button class="mini" type="button" data-delgc="${esc(r.id)}">Excluir</button>`:""}</td></tr>`).join("")||`<tr><td colspan="9">Nenhuma foto neste filtro.</td></tr>`;
 }
 $("edPl").addEventListener("input",e=>{const tr=e.target.closest("tr[data-id]");if(!tr)return;tr.classList.add("dirty");
   const v=e.target.dataset.k==="altura_cm"?num(e.target.value):null;e.target.classList.toggle("err",v!=null&&(v<=0||v>250));

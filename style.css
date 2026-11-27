@@ -135,3 +135,12 @@ div.cell.tall{aspect-ratio:auto;min-height:110px}
 button.del.inl{min-height:32px;padding:0 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:600 13px Barlow,system-ui,sans-serif;cursor:pointer}
 button.del.sure,.mini.danger.sure{background:#c0392b!important;color:#fff!important;border-color:#c0392b!important;opacity:1}
 .mini.danger{color:#c0392b;border-color:#c0392b80}
+/* v8: 3 fotos por ponto + nome do arquivo */
+.cell .bd{top:8px;bottom:auto}
+.cell .fn{position:absolute;left:0;right:0;bottom:0;padding:5px 8px;background:#000c;color:#fff;font-size:12px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.smp .pf{display:inline-flex;gap:8px}.smp .pf label{display:inline-flex;align-items:center;gap:4px}
+.cell.tall[data-pl]{aspect-ratio:3/4;min-height:0}
+/* v9: adicionar fotos direto na comparação */
+.bg .hd .adds{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.bg .hd button.add{min-height:36px;padding:0 10px;border:1px solid #fff9;border-radius:6px;background:#ffffff26;color:#fff;font:600 13px Barlow,system-ui,sans-serif;cursor:pointer}
+.bg .hd button.add:hover,.bg .hd button.add:focus-visible{background:#ffffff4d}
